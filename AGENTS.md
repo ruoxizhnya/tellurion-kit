@@ -1,12 +1,14 @@
 # AGENTS — tellurion-kit
 
-## 这是什么仓
+> 本文件是**本仓**的唯一入口。判据：一个 agent 只 checkout 本仓，就能知道「怎么构建、边界在哪、依赖哪版契约、活在哪、禁止什么」，**不需要读别的仓的源码**。
 
-横切工具，**零业务概念**：logging · db（仅 connection/migrate/DSN）· errors · decimal · statistics · httpclient · httpserver · authz · observability · clock · sandbox。
+## 1. 这是什么仓
 
-状态：**待建（S2 / QT-07）**——当前为占位仓，**尚无实现**。抽取动作见 QT-05（S1）与 QT-07（S2）。
+横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
-## 构建 / 测试
+**状态**：S1 落代码（QT-05）／S2 打 tag（QT-07）——当前为占位仓，尚无实现
+
+## 2. 构建 / 测试（必须单仓可跑）
 
 ```bash
 go build ./...
@@ -14,35 +16,41 @@ go vet ./...
 go test ./...
 ```
 
-本仓必须**单独 checkout 就能跑通**这三条（R1/R2）。若某一步需要别的仓的源码目录，
-那是**契约画错了**，不是正常状态——停下来先修边界，不要加 `replace ../xxx`。
+- 这三条是 R1/R2 的判据：**单独 checkout 就能绿**。
+- 若某一步需要别的仓的源码目录才过，那是**边界画错了**——停下来修边界，**不要**加 `replace ../xxx` 绕过。
+- 本机同时改多个仓时可用 `go.work` 联调，但**它不入库**（`.gitignore` 已挡）。
 
-## 边界（硬约束）
+## 3. 边界（硬约束）
 
-允许：
-- 被 contracts / core / agent / 各服务 `require`
-- 放与业务无关的通用设施
+**允许**
 
-禁止：
-- 出现业务词（backtest / strategy / order / factor / market / portfolio …）
-- 依赖 contracts（方向相反：contracts 依赖 kit 的 decimal/errors）
-- 持有任何表结构或 schema 迁移
-- `replace` 指向仓外路径；`go.work*` 提交入库。
-- 引入未在本文件声明的第三方依赖（先改本文件，再改代码）。
+- 被任意仓 `require`（它是依赖图的底座）
+- 纯技术能力：日志、错误包装、十进制、统计、HTTP 客户端/服务端、鉴权、可观测、时钟、沙箱、DB 连接
 
-## 依赖的契约版本
+**禁止**
+
+- 任何业务概念：backtest / strategy / order / factor / market / portfolio …
+- 任何表结构（`kit/db` 只做 connection / migrate / DSN 解析）
+- 反向依赖 contracts 或任何应用仓
+
+下面三条对所有仓都成立：
+
+- **禁止** `replace` 指向仓外路径（单仓就不可构建了）。
+- **禁止**提交 `go.work` / `go.work.sum`（本地产物；已在 `.gitignore`）。
+- 新增第三方依赖前，先在第 4 节登记，再改 `go.mod`；没登记就加依赖 = 绕过评审。
+
+## 4. 依赖的契约版本
 
 | 依赖 | 版本 | 说明 |
 |---|---|---|
-| `github.com/ruoxizhnya/tellurion-contracts` | 待定（S2 后 `v0.1.0`） | 契约变更只走 tag，不走源码路径 |
-| `github.com/ruoxizhnya/tellurion-kit` | 待定（S2 后 `v0.1.0`） | 同上 |
+| `（无内部依赖）` | — | 本仓是依赖图底层；只依赖第三方库 |
 
-## 该做什么
+> 跨仓依赖**只认版本号**（伪版本或 tag），不认源码路径。契约变更走 `tellurion-contracts` 的发布，不走"顺手改一下"。
 
-**唯一台账是 `tellurion` 仓的 `docs/TASKS.md`。** 本仓没有独立 TASKS，
-跨仓只留指针、不镜像正文（避免双写漂移）。
+## 5. 活在哪、文档在哪
 
-开工前先读：
-1. `tellurion:docs/design/qt-decoupling/repo-inventory.md` —— 仓名与 module 规则
-2. `tellurion:docs/TASKS.md` —— 找本仓的单号；没有单号就别开工
-3. `tellurion:docs/design/qt-decoupling/p0-round2-review.md` §4 —— wave 顺序
+- **本仓台账**：`docs/TASKS.md`（唯一）。**没有单号别开工。**
+- 文档导航：`docs/README.md`；边界与依赖方向：`docs/ARCHITECTURE.md`；决策：`docs/adr/`。
+- 跨仓背景（只读，不在本仓改）：`tellurion:docs/design/qt-decoupling/repo-topology-and-naming.md`、`tellurion:docs/TASKS.md`。
+
+> 跨仓引用一律写 `repo:path` 纯文本，**不做可点击相对链接**——独立 checkout 时 `../../` 必断，R2 会永远红。
