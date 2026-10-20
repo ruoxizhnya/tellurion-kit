@@ -1,36 +1,68 @@
-# 本仓边界与依赖方向 — tellurion-kit
+---
+status: active
+last-verified: 2026-10-20
+verified-by: 功能边界固化（三份契约：db / api / dataflow）
+---
 
-## 定位
+# 架构 — tellurion-kit
 
-横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
+## 1. 定位
 
-状态：**S1 落代码（QT-05）／S2 打 tag（QT-07）——当前为占位仓，尚无实现**
+横切工具层：**零业务概念**。它是依赖图的底座，被所有仓 `require`，正因为如此，它一旦混进业务概念，就会变成新的耦合中心。
 
-## 依赖方向（编译器强制）
+## 2. 分层
 
 ```
-github.com/ruoxizhnya/tellurion-kit
+（底座，无内部依赖）
+
+  logging · errors · id · decimal · statistics
+  httpclient · httpserver · auth/authz · observability
+  clock · sandbox(staticcheck/runner) · db(connection/migrate/DSN)
+```
+
+## 3. 组件职责
+
+| 包 | 边界 | 反例 |
+|---|---|---|
+| `logging` | 日志形状与级别 | 不放业务埋点 |
+| `errors` | 包装与分类 | 不定义业务错误码语义（那是 contracts） |
+| `decimal` | 定点运算 | 不定义费率模型（那是 contracts 的 `fees`） |
+| `db` | 连接 / 迁移执行 / DSN | 不含表结构 |
+| `sandbox` | 进程隔离与静态检查 | 不加载策略（那是 core 的 WASM host） |
+
+## 4. 三份契约（功能的边界就在这三份文件里）
+
+| 维度 | 文件 | 回答什么问题 |
+|---|---|---|
+| 数据形状 | [`db-schema.md`](db-schema.md) | 本仓拥有哪些表？谁能写？ |
+| 接口形状 | [`api-schema.md`](api-schema.md) | 对外暴露什么？错误码与幂等怎么做？ |
+| 流向与顺序 | [`dataflow.md`](dataflow.md) | 数据怎么流？哪里 fail-closed？ |
+
+## 5. 依赖方向
+
+```
+third-party libs
+        ↓
+       kit
         ↑
-contracts / core / agent / 各服务
+contracts / core / agent / 各服务（都可以直接 require kit）
 ```
 
-- 箭头 = import 方向。**不允许反向**，也不允许成环 —— 反向 import 应当**编译失败**，这是判据不是口号。
-- 跨仓只认版本号：`github.com/ruoxizhnya/tellurion-kit` 以需要的版本出现在下游 `go.mod`。
+## 6. 关键决策
 
-## 边界表
+- [`adr/0001-零业务概念.md`](adr/0001-零业务概念.md)
 
-| | 内容 |
-|---|---|
-| 允许 | 被任意仓 `require`（它是依赖图的底座）；纯技术能力：日志、错误包装、十进制、统计、HTTP 客户端/服务端、鉴权、可观测、时钟、沙箱、DB 连接 |
-| 禁止 | 任何业务概念：backtest / strategy / order / factor / market / portfolio …；任何表结构（`kit/db` 只做 connection / migrate / DSN 解析）；反向依赖 contracts 或任何应用仓 |
+## 7. 非目标（明确不做）
 
-## 关键约束
+- 不做业务抽象（没有"通用 Repository"这种东西）
+- 不做 DI / 框架
+- 不放任何表结构或迁移 SQL
+- 不替代标准库能干净解决的事
 
-1. **单仓可构建**：`go build ./...` / `go vet ./...` / `go test ./...` 不依赖任何兄弟目录。
-2. **无 `replace`**：指向仓外的 `replace` 一律不接受（CI 会查）。
-3. **无 `go.work` 入库**：本地联调可以建，提交即错。
-4. **业务词零命中**：`kit` 内出现 backtest/strategy/order/factor/market 等词即违规（QT-05 验收项）。
+## 8. 分期与状态
 
-## 未决 / 待定
-
-- `db` 包的边界（只连接/迁移/DSN，零表结构）随 QT-05 落地时再核对一次。
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| S1（QT-05） | 迁 12 个横切包 + 新增 `db` | ⬜ |
+| S2（QT-07） | 打 `v0.1.0` | ⬜ |
+| QT-17 | agent 用 `kit/db` 自建 `ai.*` | ⬜ |
