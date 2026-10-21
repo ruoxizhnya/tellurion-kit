@@ -12,20 +12,20 @@ verified-by: 功能边界固化（三份契约：db / api / dataflow）
 
 ## 1. 接口面
 
-| 包 | 提供什么 | 典型用途 |
-|---|---|---|
-| `logging` | 结构化日志、级别、字段约定 | 全仓统一日志形状 |
-| `errors` | 包装 / 分类 / 堆栈 | 与 contracts 的三类哨兵配合 |
-| `id` | 有序 ID 生成 | run_id / job_id |
-| `decimal` | 定点小数 | 价格与金额（禁止 float 做钱） |
-| `statistics` | 常用统计量 | 指标计算 |
-| `httpclient` | 带超时 / 重试 / 熔断的客户端 | 服务间调用 |
-| `httpserver` | 统一的错误响应与中间件 | 各服务 HTTP 面 |
-| `auth` / `authz` | 认证与鉴权原语 | API 保护 |
-| `observability` | 指标 / 追踪 / 健康检查 | `/metrics`、`/health` |
-| `clock` | 可注入时钟 | 让"纯函数"可测试 |
-| `sandbox` | staticcheck / runner | 策略沙箱 |
-| `db` | 连接 / DSN / 迁移执行（**零表结构**） | 各仓自己的 store |
+| 包 | 提供什么 | 典型用途 | 实现状态 |
+|---|---|---|---|
+| `logging` | 结构化日志、级别、字段约定 | 全仓统一日志形状 | ⬜ 未落地（仅 doc.go 占位） |
+| `errors` | 包装 / 分类 / 堆栈 | 与 contracts 的三类哨兵配合 | ⬜ 未落地（仅 doc.go 占位） |
+| `id` | 有序 ID 生成 | run_id / job_id | ⬜ 未落地（仅 doc.go 占位） |
+| `decimal` | 定点小数 | 价格与金额（禁止 float 做钱） | ⬜ 未落地（仅 doc.go 占位） |
+| `statistics` | 常用统计量 | 指标计算 | ⬜ 未落地（仅 doc.go 占位） |
+| `httpclient` | 带超时 / 重试 / 熔断的客户端 | 服务间调用 | ⬜ 未落地（仅 doc.go 占位） |
+| `httpserver` | 统一的错误响应与中间件 | 各服务 HTTP 面 | ⬜ 未落地（仅 doc.go 占位） |
+| `auth` / `authz` | 认证与鉴权原语 | API 保护 | ⬜ 未落地（仅 doc.go 占位） |
+| `observability` | 指标 / 追踪 / 健康检查 | `/metrics`、`/health` | ⬜ 未落地（仅 doc.go 占位） |
+| `clock` | 可注入时钟 | 让"纯函数"可测试 | ⬜ 未落地（仅 doc.go 占位） |
+| `sandbox` | staticcheck / runner | 策略沙箱 | ⬜ 未落地（仅 doc.go 占位） |
+| `db` | 连接 / DSN / 迁移执行（**零表结构**） | 各仓自己的 store | ⬜ 未落地（仅 doc.go 占位） |
 
 ## 2. 错误码与 fail-closed 语义
 
