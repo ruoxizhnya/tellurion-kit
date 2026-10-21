@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-20
-verified-by: 首次建立本仓台账（QT-08 十二仓自治三件套）
+last-verified: 2026-10-21
+verified-by: 任务台账批量重分布（QT-05-B 拆分落本仓）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -15,7 +15,7 @@ verified-by: 首次建立本仓台账（QT-08 十二仓自治三件套）
 
 ## 一、本仓任务
 
-> **占位仓**：实现落地前不写业务代码；以下两张单是**随仓文档交付**（refactor-plan-review M6/L4/L5 修复传播，2026-10-20 登记），与 S1 落码（QT-05）并行可做。
+> **占位仓**：实现落地前不写业务代码；KT-01/KT-02 两张是**随仓文档交付**（refactor-plan-review M6/L4/L5 修复传播，2026-10-20 登记），可与 S1 落码并行。**QT-05-B**（S1 落码 kit 腿，2026-10-21 拆分落本仓）在两单之后。
 >
 > 第一张单长什么样（照此写，别自造格式）：
 >
@@ -45,6 +45,16 @@ verified-by: 首次建立本仓台账（QT-08 十二仓自治三件套）
 - **⑤ 验收**：README 存在版本规则表与兼容矩阵；CHANGELOG ≥ 1 条；AGENTS.md 含 GOPRIVATE 行；**破坏验证**：发一版不更新兼容矩阵 → 发版 checklist 项不可勾（或检查脚本红）。
 - **⑥ 边界**：只定本仓策略与文档；contracts 的同名交付是 `tellurion-contracts:docs/TASKS.md` CT-02；「禁删 deprecated」机械护栏属 `tellurion:docs/TASKS.md` QT-09 ⑤。
 
+### QT-05-B · S1 工具层落地：12 个包 + `db` 迁入本仓（QT-05 的 kit 腿）[P0] ⬜
+
+> **拆分说明（2026-10-21）**：QT-05（S1 契约层与工具层落地）主单在 `tellurion-contracts:docs/TASKS.md`（同号 QT-05，六字段正文权威版，2026-10-21 自 core `tellurion:docs/TASKS.md` 迁入）；本单是其 **kit 腿**（主单 ③-② 的执行单），按仓归属拆出、判据以主单为准。两腿同期交付，**kit 先行落码**（contracts 依赖本仓 `decimal`/`errors`，主单 ② 实测）。
+
+- **① 目标**：横切工具**物理上住进本仓**（12 个包 + 新增 `db`），零业务依赖；core 与 agent 经**版本依赖**引用本仓。
+- **② 上下文**：主单 QT-05 的 ② 与形态裁决（ADR-D31：代码直接写进新仓，core/agent 用 `require <伪版本>`，全程不 `replace`；本地联调用 `go.work` 且不入库）。包清单（12 个横切包）源出 `tellurion:docs/design/qt-decoupling/target-module-topology.md` 包边界表（含依赖方向订正 banner：`kit ← contracts(含 domain) ← core`）。本仓现状：`github.com/ruoxizhnya/tellurion-kit`、`go 1.25`、public。`docs/SCOPE.md` 载体是 KT-01，不在本单。
+- **③ 要求**：主单 ③-② 原文——`tellurion-kit`：迁 12 个包 + 新增 **`db`**（仅 connection/migrate/DSN 解析，**零表结构**，K 裁决落地）；另落地主单 ④/⑤ 中直接约束本仓的判据：一次只搬一个包、每搬一次 `go build ./...` + `go vet ./...`；本仓 import `tellurion/...` 必须**编译失败**；`kit` 业务词零命中（core 专用类型 `screen`/`sector`/`supply_chain`/`macro`/`mining` 不进本仓，主单 ③-⑨）。
+- **④ 约束与非目标**：**不改任何业务逻辑**；`db` **零表结构**（K 裁决）；不搬 `fees` 的计算部分（主单 ④）；不在本单打 tag（S2 = QT-07）；不新增 `replace`。
+- **⑤ 验收**（主单 ⑤ 中本仓腿的判据）：单独 checkout 本仓 `go build ./...` + `go test ./...` 绿；在本仓 import `tellurion/...` 编译失败；`kit` 业务词零命中；core/agent 侧 `go list -m all` 的 kit 行带真实伪版本且 `git grep -E '=> *\.\./tellurion-kit'` 零命中（core 腿执行，结果对拍）；**破坏验证**：在本仓任一包塞一个业务词 import ⇒ 护栏/构建红，还原绿。
+- **⑥ 边界**：只做本仓包落地；契约类型是主单 QT-05（contracts 腿）；core/agent 依赖切换与 `check_contract_pin.py` 是主单 ③-③/④/⑤/⑦（core 侧）；tag / 版本策略 / 跨仓护栏属 QT-07 / QT-09 / QT-19；`docs/SCOPE.md` 属 KT-01。
 
 ---
 
@@ -55,17 +65,17 @@ verified-by: 首次建立本仓台账（QT-08 十二仓自治三件套）
 
 | 阶段 | 内容 | 上游单号 | 前置 |
 |---|---|---|---|
-| S1 | 迁 12 个横切包 + 新增 `db`（connection/migrate/DSN，零表结构） | `QT-05` | W0 全绿 |
-| S1 | `kit` 内业务词零命中（验收项） | `QT-05` | 同上 |
+| S1 | 迁 12 个横切包 + 新增 `db`（connection/migrate/DSN，零表结构）（正文见「一、本仓任务」QT-05-B） | `QT-05-B` | W0 全绿 |
+| S1 | `kit` 内业务词零命中（验收项） | `QT-05-B` | 同上 |
 | S2 | 打 `v0.1.0`；下游换 tag | `QT-07` | S1 全绿 |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 
 | 单号 | 主题 | 在哪 |
 |---|---|---|
-| QT-05 | S1：迁 12 个横切包 + 新增 `db` | `tellurion:docs/TASKS.md` |
+| QT-05 | S1 主单（契约层腿 + core 侧依赖切换），本仓腿拆为 QT-05-B | `tellurion-contracts:docs/TASKS.md`（2026-10-21 自 core 迁入；core `tellurion:docs/TASKS.md` 留同号指针） |
 | QT-07 | S2：打 `v0.1.0` 并把下游伪版本换成 tag | `tellurion:docs/TASKS.md` |
-| QT-17 | agent 数据自持会用到本仓的 `db` | `tellurion:docs/TASKS.md` |
+| QT-17 | agent 数据自持会用到本仓的 `db` | `tellurion-agent:docs/TASKS.md`（2026-10-21 自 core 迁入；core 留同号指针） |
 
 ---
 
