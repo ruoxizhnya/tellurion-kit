@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-20
-verified-by: 功能边界固化（三份契约：db / api / dataflow）
+last-verified: 2026-10-22
+verified-by: KT-01 落地（§3 简表标注为示意，逐包真相在 SCOPE.md）
 ---
 
 # 架构 — tellurion-kit
@@ -29,6 +29,10 @@ verified-by: 功能边界固化（三份契约：db / api / dataflow）
 | `decimal` | 定点运算 | 不定义费率模型（那是 contracts 的 `fees`） |
 | `db` | 连接 / 迁移执行 / DSN | 不含表结构 |
 | `sandbox` | 进程隔离与静态检查 | 不加载策略（那是 core 的 WASM host） |
+
+> 这张表是**定位级简表**（5 行示意）。逐包「收什么 / 不收什么」的完整清单、业务词表、允许的 import 面，
+> 以及「core 今天的形状与清单有哪些出入」的实测偏差登记，都在 [`SCOPE.md`](SCOPE.md)——那才是 `tools/check_scope` 核对的登记表。
+> 两处有出入时以 `SCOPE.md` 与 CI 为准。
 
 ## 4. 三份契约（功能的边界就在这三份文件里）
 

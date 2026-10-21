@@ -1,6 +1,6 @@
 name: CI
 
-# 本仓最小门禁（ADR-D29 R2「单仓可自证」）：格式 + 构建 + 静态检查 + 测试。
+# 本仓最小门禁（ADR-D29 R2「单仓可自证」）：格式 + 构建 + 静态检查 + 包边界核对 + 测试。
 # 本仓**不得** checkout 其他仓 —— 需要别的仓源码才能过，就是边界画错了。
 on:
   push:
@@ -34,6 +34,9 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      - name: 包边界核对（KT-01 护栏：业务词 / 越界 import / SCOPE.md 未登记包 即红）
+        run: go run ./tools/check_scope
 
       - name: Test
         run: go test ./... -count=1

@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-21
-verified-by: 任务台账批量重分布（QT-05-B 拆分落本仓）
+last-verified: 2026-10-22
+verified-by: KT-01 结案归档（docs/SCOPE.md 十三包清单 + tools/check_scope 进 CI）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -17,6 +17,10 @@ verified-by: 任务台账批量重分布（QT-05-B 拆分落本仓）
 
 > **占位仓**：实现落地前不写业务代码；KT-01/KT-02 两张是**随仓文档交付**（refactor-plan-review M6/L4/L5 修复传播，2026-10-20 登记），可与 S1 落码并行。**QT-05-B**（S1 落码 kit 腿，2026-10-21 拆分落本仓）在两单之后。
 >
+> ✅ **KT-01 已结案（2026-10-22）**：`docs/SCOPE.md`（13 包逐包准入/禁入 + 词表 + 实测偏差九条）+ `tools/check_scope`（CI 步骤「包边界核对」）落地，
+> 整条搬进 [`archive/TASKS-2026-10-22-archived.md`](archive/TASKS-2026-10-22-archived.md)。
+> **对 QT-05-B 的直接后果**：落码时包必须先进 `SCOPE.md` §3 那张表（少一行是 fatal，不是提醒）；§5 那九条偏差里有四条会让照搬即红，先读那张表再动手。
+>
 > 第一张单长什么样（照此写，别自造格式）：
 >
 > ### XX-01 · <一句话目标> [P?] ⬜
@@ -27,14 +31,15 @@ verified-by: 任务台账批量重分布（QT-05-B 拆分落本仓）
 > - **⑤ 验收**：可复现的命令 + 期望输出；至少一条"破坏验证"（改坏它应当红）
 > - **⑥ 边界**：只做什么；相邻的什么归别的单
 
-### KT-01 · 随仓接口规格载体 `docs/SCOPE.md`（12 包逐包准入/禁入清单）[P1] ⬜
+### KT-01 · 随仓接口规格载体 `docs/SCOPE.md`（12 包逐包准入/禁入清单）[P1] ✅ 完成（2026-10-22，已归档）
 
-- **① 目标**：本仓每个横切包有随仓、可自证的准入/禁入边界，下游（core/agent）不读 core 实现即可知什么该进 kit、什么不许进。
-- **② 上下文**：refactor-plan-review **M6**（报告：`tellurion:docs/design/qt-decoupling/refactor-plan-review-2026-10-20.md`）；上游编排单 `tellurion:docs/TASKS.md` QT-07 ③-S2-c；包边界表源出 `tellurion:docs/design/qt-decoupling/target-module-topology.md`（含其依赖方向 ⚠️ 订正 banner：`kit ← contracts(含 domain) ← core`）。S1 迁移范围见 `tellurion:docs/TASKS.md` QT-05（12 个横切包 + 新增 `db`）。
-- **③ 要求**：① 建 `docs/SCOPE.md`：按 QT-05 的 12 包 + `db` 逐包列**准入清单**（该包收什么）与**禁入清单**（业务词、领域语义、core 内部类型禁止入包）；② 每包标注依赖方向约束（kit 不 import contracts 以外的业务层，最终不变量 `kit ← contracts(含 domain) ← core`）；③ 护栏进 CI（AST 扫描）：与「`kit` 内业务词零命中」验收（QT-05）同源，包边界违规即红。
-- **④ 约束与非目标**：只写边界清单不写实现细节；不做跨进程 DTO（那是 `tellurion:docs/openapi.yaml` 生成物、归 core，见 `tellurion:docs/design/qt-decoupling/repo-inventory.md` §3）；不含版本规则（那是 KT-02）。
-- **⑤ 验收**：`docs/SCOPE.md` 覆盖 12 包 + `db` 逐包成表；AST 护栏接入 CI；**破坏验证**：故意往任一包塞一个业务词/越界 import → 护栏红（留证后撤回）。
-- **⑥ 边界**：只做包准入/禁入载体与护栏；导出面接口规格（符号级）归 `tellurion-contracts:docs/TASKS.md` CT-01；版本策略归 KT-02。
+> 六字段正文与结案记录（⑤ 验收真退出码、现场破坏验证的还原凭据、22 条夹具腿、词表与覆盖面限制的理由）在
+> [`archive/TASKS-2026-10-22-archived.md`](archive/TASKS-2026-10-22-archived.md)。本文件按规则只留未完成项，这里只留指针。
+>
+> **对 QT-05-B 的直接后果（读 `SCOPE.md` §5 那九条，别照搬）**：清单落的是 **13 行**（12 横切包 + `db`）；
+> `pkg/id` 的 `OrderID`、`pkg/clock` 的 `ModeBacktest`、`pkg/observability` 的 `BacktestDuration`/`ObserveBacktest` 撞词表，
+> `pkg/auth` 带 `users`/`audit_logs` 的 SQL 撞「零表结构」——这四条**不解决就搬，本仓 CI 第一天就红**；
+> 其中 auth 那条是裁决（SQL 留 core 还是 auth 暂不进本仓），不是改名能过关的。
 
 ### KT-02 · README 版本规则表 + 兼容矩阵 + CHANGELOG + `GOPRIVATE` 前提 [P1] ⬜
 

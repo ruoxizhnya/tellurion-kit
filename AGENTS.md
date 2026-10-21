@@ -14,9 +14,10 @@
 go build ./...
 go vet ./...
 go test ./...
+go run ./tools/check_scope   # 包边界：业务词 / 越界 import / SCOPE.md 未登记包 即红（CI 同款，KT-01 护栏）
 ```
 
-- 这三条是 R1/R2 的判据：**单独 checkout 就能绿**。
+- 前三条是 R1/R2 的判据：**单独 checkout 就能绿**；第四条是本仓的包边界护栏（KT-01，CI 同款步骤）。
 - 若某一步需要别的仓的源码目录才过，那是**边界画错了**——停下来修边界，**不要**加 `replace ../xxx` 绕过。
 - 本机同时改多个仓时可用 `go.work` 联调，但**它不入库**（`.gitignore` 已挡）。
 
@@ -65,4 +66,8 @@ go test ./...
 | 接口形状（对外暴露什么、错误码、幂等） | `docs/api-schema.md` |
 | 流向与顺序（数据怎么走、哪里 fail-closed） | `docs/dataflow.md` |
 
-**变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。
+**本仓还有第四份**：`docs/SCOPE.md` —— **13 包逐包准入/禁入清单** + 业务词表 + 依赖方向 + 实测偏差登记。
+它与别的仓的三份不同，因为它是**机器核对**的：出现一个没登记的包、或某个声明标识符撞上词表，`go run ./tools/check_scope` 当场红（KT-01）。
+§3 那句「禁止任何业务概念」是口径，`docs/SCOPE.md` §2 那张词表才是可执行边界：**判定撞车时以 SCOPE 与 CI 为准**，改词表要同时改 SCOPE §2 的出处列。
+
+**变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；**新增 / 改名 / 删除包，或改某包准入边界 → 改 `docs/SCOPE.md` 那一行**；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。
