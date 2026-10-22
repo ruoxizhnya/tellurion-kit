@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-10-22
-verified-by: KT-01 落地（SCOPE.md 进导航与变更触发表，第四份真相源）
+verified-by: KT-02 结案（版本纪律三件套进导航与变更触发表）
 ---
 
 # 文档导航 — tellurion-kit
@@ -17,6 +17,7 @@ verified-by: KT-01 落地（SCOPE.md 进导航与变更触发表，第四份真�
 | 开工前找活 | [`TASKS.md`](TASKS.md)（**唯一台账**） |
 | 确认"这个功能到底归不归我" | [`ARCHITECTURE.md`](ARCHITECTURE.md) 的定位与「三份契约」 |
 | 确认"这个**包**到底收不收这个东西" | [`SCOPE.md`](SCOPE.md)（13 包逐包准入/禁入 + 业务词表，**CI 核对**） |
+| 发版 / 改版本纪律 | [`../README.md`](../README.md) 的「版本规则 / 兼容矩阵 / 发版流程」+ [`../CHANGELOG.md`](../CHANGELOG.md)（**CI 核对，矩阵与账对不上即红**） |
 | 改表 / 加列 | [`db-schema.md`](db-schema.md) |
 | 加 / 改接口 | [`api-schema.md`](api-schema.md) |
 | 改数据流向或顺序 | [`dataflow.md`](dataflow.md) |
@@ -30,6 +31,7 @@ verified-by: KT-01 落地（SCOPE.md 进导航与变更触发表，第四份真�
 |---|---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | 高层设计：分层、组件、依赖方向、非目标 | 改结构的人 |
 | [`SCOPE.md`](SCOPE.md) | **包边界唯一真相源**：逐包准入/禁入、业务词表、允许的 import 面、实测偏差登记；`tools/check_scope` 在 CI 核对 | 加包 / 改包边界的人 |
+| [`../README.md`](../README.md) §版本规则/兼容矩阵 + [`../CHANGELOG.md`](../CHANGELOG.md) | **版本纪律三件套**：三行 bump 表、按 `vX.Y` 序列建行的矩阵、每个发版一节的账本；由 `tools/check_release_matrix` 在 CI 与 tag 三方对拍 | 发版的人 |
 | [`db-schema.md`](db-schema.md) | **表结构唯一真相源** + 所有权声明 | 改表的人 |
 | [`api-schema.md`](api-schema.md) | **对外接口唯一真相源** + 错误码 / 幂等 / 兼容 | 改接口的人 |
 | [`dataflow.md`](dataflow.md) | 数据流向、时序、fail-closed 点、不变量 | 改链路的人 |
@@ -43,6 +45,7 @@ verified-by: KT-01 落地（SCOPE.md 进导航与变更触发表，第四份真�
 | 代码变更 | 必须更新的文档 |
 |---|---|
 | **新增 / 改名 / 删除包**，或改某包的准入边界 | `SCOPE.md` §3 那一行（`go run ./tools/check_scope` 当场红，不是提醒） |
+| **发版**（打 tag） | `README.md` 兼容矩阵那一行 + `CHANGELOG.md` 那一节（`go run ./tools/check_release_matrix` 当场红；口径源头在 `tellurion:docs/TASKS.md` QT-19 ③） |
 | 建表 / 加列 / 加索引 / 改主键 | `db-schema.md`（+ 结构级变更立 ADR） |
 | 新增 / 修改 / 废弃接口 | `api-schema.md`（错误码与幂等两节要一起看） |
 | 新增数据源、改聚合口径、改顺序 | `dataflow.md` |

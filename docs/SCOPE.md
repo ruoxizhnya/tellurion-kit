@@ -133,5 +133,5 @@ go run ./tools/check_scope -scope docs/SCOPE.md   # 指定清单文件（默认�
 | `docs/ARCHITECTURE.md` §3 | 只有 5 行的**简表**（定位级），逐包全表在本文件；两处若有出入，以本文件 + CI 为准 |
 | `docs/db-schema.md` | 本仓**不拥有任何表**；`db` 包只做连接/DSN/迁移机制（K 裁决），表结构的真相对应 core 的 `pkg/storage/postgres.go` |
 | `tellurion-contracts:docs/API.md` | **符号级**导出面清单归 contracts（CT-01）；本文件只管「包该不该收这个东西」，不重复列符号 |
-| `README.md` §版本规则 | 版本纪律与兼容矩阵归 KT-02，不在本文件 |
+| `README.md` §版本规则/兼容矩阵 + `CHANGELOG.md` | **版本纪律三件套**（KT-02 已落地）：bump 表、按 `vX.Y` 序列建行的矩阵、发版账本，由 `tools/check_release_matrix` 在 CI 与 tag 三方对拍；本文件只管「包该不该收这个东西」，不重复写版本口径 |
 | `docs/adr/0001-零业务概念.md` | 「为什么零业务」的决策；本文件是它的执行清单 |

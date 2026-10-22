@@ -1,6 +1,6 @@
 name: CI
 
-# 本仓最小门禁（ADR-D29 R2「单仓可自证」）：格式 + 构建 + 静态检查 + 包边界核对 + 测试。
+# 本仓最小门禁（ADR-D29 R2「单仓可自证」）：格式 + 构建 + 静态检查 + 包边界核对 + 版本纪律核对 + 测试。
 # 本仓**不得** checkout 其他仓 —— 需要别的仓源码才能过，就是边界画错了。
 on:
   push:
@@ -13,7 +13,11 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 是「版本纪律核对」那条腿的前提：默认只取 HEAD，
+      # git tag 会恒为空，tag ↔ CHANGELOG ↔ 矩阵的对拍就变成假绿。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -37,6 +41,9 @@ jobs:
 
       - name: 包边界核对（KT-01 护栏：业务词 / 越界 import / SCOPE.md 未登记包 即红）
         run: go run ./tools/check_scope
+
+      - name: 版本纪律核对（KT-02 护栏：矩阵 ↔ CHANGELOG ↔ tag 不一致即红）
+        run: go run ./tools/check_release_matrix
 
       - name: Test
         run: go test ./... -count=1

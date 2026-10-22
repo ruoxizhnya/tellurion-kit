@@ -14,12 +14,14 @@
 go build ./...
 go vet ./...
 go test ./...
-go run ./tools/check_scope   # 包边界：业务词 / 越界 import / SCOPE.md 未登记包 即红（CI 同款，KT-01 护栏）
+go run ./tools/check_scope          # 包边界：业务词 / 越界 import / SCOPE.md 未登记包 即红（CI 同款，KT-01 护栏）
+go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGELOG ↔ tag（CI 同款，KT-02 护栏）
 ```
 
-- 前三条是 R1/R2 的判据：**单独 checkout 就能绿**；第四条是本仓的包边界护栏（KT-01，CI 同款步骤）。
+- 前三条是 R1/R2 的判据：**单独 checkout 就能绿**；后两条是本仓的两条随仓护栏（CI 同款步骤）。
 - 若某一步需要别的仓的源码目录才过，那是**边界画错了**——停下来修边界，**不要**加 `replace ../xxx` 绕过。
 - 本机同时改多个仓时可用 `go.work` 联调，但**它不入库**（`.gitignore` 已挡）。
+- **私有化前提**：本仓一旦被设为 private，构建与全部 CI 环境必须配 `GOPRIVATE=github.com/ruoxizhnya/*` **加** git 凭证（PAT / SSH），否则 `go get` 走公共 proxy 必然拉不到（风险注见 `tellurion:docs/design/qt-decoupling/repo-inventory.md` §1.1/§5；现状 12 仓全 public）。本仓在依赖图底座，转私有先红的是 contracts / core / agent 的 CI，不是本仓。细则与发版流程在 `README.md`「拉取前提」「发版流程」。
 
 ## 3. 边界（硬约束）
 
@@ -70,4 +72,8 @@ go run ./tools/check_scope   # 包边界：业务词 / 越界 import / SCOPE.md 
 它与别的仓的三份不同，因为它是**机器核对**的：出现一个没登记的包、或某个声明标识符撞上词表，`go run ./tools/check_scope` 当场红（KT-01）。
 §3 那句「禁止任何业务概念」是口径，`docs/SCOPE.md` §2 那张词表才是可执行边界：**判定撞车时以 SCOPE 与 CI 为准**，改词表要同时改 SCOPE §2 的出处列。
 
-**变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；**新增 / 改名 / 删除包，或改某包准入边界 → 改 `docs/SCOPE.md` 那一行**；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。
+**第五份是版本纪律三件套**：`README.md` 的「版本规则 / 兼容矩阵」+ `CHANGELOG.md` + `git tag`。
+同样是机器核对的：发版只写 CHANGELOG 不更新矩阵（或反过来、或 tag 打在没账的版本上），`go run ./tools/check_release_matrix` 当场红（KT-02）。
+本仓的 breaking 面比别仓更宽（底座一次改动同时打到 contracts / core / agent），所以「移动 / 删除 / 改名一个包」在本仓**记作 breaking**，见 README「判定补充」。
+
+**变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；**新增 / 改名 / 删除包，或改某包准入边界 → 改 `docs/SCOPE.md` 那一行**；**发版 → 改兼容矩阵那一行 + `CHANGELOG.md` 那一节**；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。
