@@ -109,3 +109,65 @@
 
 **顺带登记（不修）**：退避仍是硬编码 `1<<(attempt-1)` 秒、不可注入，`go test ./httpclient/... -count=1` 的耗时结构不变（本单 ④ 约束明确「不动退避算法」）。
 
+---
+
+## KT-05 · `errors` 零单测、`logging` 的初始化路径未测（含一个包级可变全局）[P2] ✅ 完成（2026-10-23）
+
+- **① 目标**：本仓最底层的两个包（所有仓都会 `require`）有**自己的**单测，其导出面的语义变化能被本仓 CI 当场逮住，而不是等使用方红。
+- **② 上下文**：实测（2026-10-22，`go test ./... -count=1`）：`errors` 包**没有测试文件**（输出 `? …/errors [no test files]`），
+  core 的 `pkg/errors` 同样没有——QT-05-B 逐字照搬，所以这个空洞是**继承来的**，不是本次引入的。
+  `errors` 今天只被间接覆盖：`httpserver/errors_test.go` 有 12 处用 `apperrors.ErrCode*` 走「分类 → 状态码」那条链
+  （`StatusForAppError`），但 `Wrap`/`Wrapf` 的 `%w` 链、`AppError.Is` **按分类码相等**（不是实例身份）、`ToMap`、`captureStack` 都没有直接断言。
+  `logging` 只有 `masking_test.go`；`logger.go` 的 `Init(level, format)` 与 `WithContext(map)` 未测，
+  且 `logging.Logger` 是**包级可变全局**（`logger.go:12`），`Init` 写它 —— 并行测试里同时 `Init` 就是数据竞争，
+  而本机 `-race` 不可用（无 cgo/gcc，见 QT-05-B 结案记录），所以这类问题今天**测不出来**。
+- **③ 要求**：① `errors` 补表驱动单测：`Is` 按码相等的正/反例（同码不同 message → 真；不同码 → 假）、`Unwrap` 链能被 `errors.Is`/`As` 穿透、
+  `WithOperation`/`WithCause` 的返回值语义（是否改原值）、`ToMap` 的字段集合、`Error()` 文案在有无 `Cause` 两种形状下的断言；
+  ② `logging` 补 `Init` 的级别与格式（json/console）解析断言 + `WithContext` 的字段注入断言；
+  ③ 就 `Logger` 全局给一个处置：要么在文档里钉死「`Init` 只能在启动期调一次，测试不得并发调」，
+  要么把它改成可注入（新导出面 = MINOR，且会影响所有使用方，**要单独裁决不要顺手改**）；
+  ④ 若 ③ 选了「文档钉死」，`docs/api-schema.md` §1 的 `logging` 行要写这条约束。
+- **④ 约束与非目标**：**不改 `errors` / `logging` 的现有行为**（补测暴露出的行为问题另立单，按 KT-03 的两步法处理）；
+  不引第三方断言库之外的新依赖（`testify` 已在 `go.mod`）；不做 `zerolog` 的全局钩子改造。
+- **⑤ 验收**：`go test ./errors/... ./logging/... -count=1` 绿且**不再是 `[no test files]`**；
+  `go test ./... -count=1 -cover` 里 `errors` 与 `logging` 的覆盖率有非零数字（把数字写进结案记录，不设阈值门槛——设了就成了凑数）；
+  **破坏验证**：把 `AppError.Is` 改成 `return false` → 新增测试必须红；把 `MaskMap` 的敏感键判断去掉 → `masking_test.go` 必须红（证明新测与旧测都在咬）。
+- **⑥ 边界**：只做这两个包的测试与全局的处置裁决；`decimal` / `httpclient` 的行为缺陷是 KT-03 / KT-04。
+
+### 结案记录（2026-10-23）
+
+**③ 裁决：选「文档钉死」，不改导出面。** `Init` 同时写包级 `Logger` 与 zerolog 全局级别，改成可注入是新导出面（MINOR）且会影响所有使用方，
+KT-05 ④ 明确要求这类改动单独裁决；本单只把约束钉进 `docs/api-schema.md` §1 的 `logging` 行：**`Init` 只能在启动期调一次，测试不得并发调**。
+`logging` 的测试因此显式登记「本包测试不得 `t.Parallel()`」，并在每个测试后恢复 `Logger` / `zerolog.GlobalLevel()` / `ErrorStackMarshaler` / `TimeFieldFormat`。
+
+**实现（零行为变化）**：把 `logger.go` 的级别解析与 writer 选择提取为包内 `parseLevel(level string) zerolog.Level` 与
+`newWriter(format string, out io.Writer) io.Writer`，`Init` 改为调用它们；**保留**原有无条件 `SetGlobalLevel(DebugLevel)`（注释 "Force debug level for testing"），
+以符合 ④「不改现有行为」。该硬编码覆盖是真实缺陷，已在源码留 `TODO(KT-07)` 并拆单（见下）。
+
+**新增测试**：
+
+- `errors/errors_test.go`（表驱动）：`Error()` 有无 `Cause` 两种文案；`Is` 按分类码相等（同码不同 message → 真、不同码 → 假、nil → 假、非 `*AppError` → 假）；
+  stdlib `errors.Is` 穿透；`Unwrap` 返回原 `Cause`，且 `fmt.Errorf("%w")` 外层可被 `errors.Is` / `errors.As` 穿透到哨兵；
+  `WithOperation` / `WithCause` 返回**同一指针**并原地改值（含文案可见）；`ToMap` 恰好 3 个键（`code` / `message` / `op`，不含 `stack_trace`）；
+  六个构造器（`InvalidInput` / `NotFound` / `Internal` / `Unavailable` / `Timeout` / `DataQuality`）的码、文案、`op`、`Cause` 与 `StackTrace`；
+  `Wrap(nil)` / `Wrapf(nil)` / `Internal(nil)` / `Unavailable(nil)` / `Timeout(nil)` → `nil`；`Wrapf` 格式化；`captureStack` 以 `goroutine ` 开头且含 `captureStack`。
+- `logging/logger_test.go`：`parseLevel` 七个输入（含未知值与大小写敏感回落 info）；`newWriter` 的 console / 非 console 分支（console 真渲染掉 JSON key、非 console 原样透写）；
+  `Init` 的 stack marshaler 与 `RFC3339Nano`；**钉住缺陷行为** `TestInit_LevelIsAlwaysForcedToDebug`（任何 level 输入最终 `GlobalLevel() == DebugLevel`，
+  注释明确「KT-07 修复时此测试必须改」）；`WithContext` 注入字段、不改基 logger、空 map 等价。
+
+**覆盖率**：`go test ./errors/... ./logging/... -count=1 -cover` 实测 **errors 100.0% / logging 100.0%**（两包均不再是 `[no test files]`）。
+
+**破坏验证（真退出码）**：
+
+- 把 `AppError.Is` 改成 `return false` → `go test ./errors/... -count=1` **EXIT=1**，红在 `TestAppError_Is/same_code_different_message_matches` 与 `TestAppError_IsThroughStdlibErrors`；还原后 **EXIT=0**。
+- 把 `MaskMap` 的敏感键分支整段删掉 → `go test ./logging/... -count=1` **EXIT=1**，红在 `TestMaskMap_MasksSensitiveKeys` / `CaseInsensitiveKeys` / `AllSensitiveKeys` / `WhitespaceInKeys`；还原后 **EXIT=0**。
+  （破坏时均用 `[System.IO.File]::WriteAllText` + `UTF8Encoding($false)` 还原，避免 PowerShell `Set-Content` 写 BOM；`git diff` 已确认两文件零差异。）
+
+**全量门禁**：`gofmt -l .` 无输出；`go build ./...` / `go vet ./...` / `go test ./... -count=1` / `go run ./tools/check_scope` / `go run ./tools/check_release_matrix` 全部 **EXIT=0**。
+本机 `CGO_ENABLED=0` 且无 C 编译器，`-race` 仍跑不了（与 QT-05-B / KT-04 同一条限制），如实登记为未在本机执行。
+
+**取证时新发现（拆单不修）**：`logging.Init` 的 `level` 参数被无条件 `SetGlobalLevel(DebugLevel)` 覆盖（生产会打印 Debug 全量日志）→ **KT-07**（`docs/TASKS.md`）。
+
+**core 侧处置**：本单不改 core `pkg/logging` / `pkg/errors` 的同一份代码——core 的测试空洞同样是继承来的，core 切到本仓依赖属 QT-05 主单。
+KT-05 六字段未要求 core 同号指针（对比 KT-03 / KT-04 ⑤ 明确要求），故本单不在 core 台账落指针。
+

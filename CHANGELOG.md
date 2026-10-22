@@ -39,6 +39,14 @@
 
 ### 变更（PATCH 级：文档与仓内自查工具，不改导出面）
 
+- **KT-05**（2026-10-23）：`errors` 与 `logging` 补单测（`errors` 此前**零测试文件**）。导出面零变化。
+  `errors` 表驱动覆盖：`Is` 按分类码相等（同码不同 message 为真、不同码为假）、`Wrap` / `Wrapf` 的 `%w` 链可被 stdlib `errors.Is` / `As` 穿透、
+  `WithOperation` / `WithCause` 返回同一指针并原地改值、`ToMap` 只出 `code` / `message` / `op`、`Error()` 在有无 `Cause` 两种文案、六个构造器与 nil 语义、`captureStack`。
+  `logging` 覆盖：`Init` 的级别与格式解析（把解析与 writer 选择提取为包内 `parseLevel` / `newWriter`，`Init` 行为逐字不变）、`WithContext` 注入字段且不污染基 logger。
+  **约束（③ 裁决：文档钉死）**：`Init` 同时写包级 `Logger` 与 zerolog 全局级别，**只能在启动期调一次，测试不得并发调**——口径在 `docs/api-schema.md` §1。
+  覆盖率：`errors` **100.0%** / `logging` **100.0%**。
+  **取证时发现的既有缺陷（未修，拆单）**：`Init` 的 `level` 参数被无条件 `SetGlobalLevel(DebugLevel)` 覆盖，生产会打印 Debug 全量日志 → **KT-07**。
+
 - **KT-04 ②**（2026-10-23）：`httpclient` 的重试不再丢请求体。原先 `*bytes.Reader` 在重试循环外只建一次，首次尝试读到 EOF 后，第二次及以后的尝试发出**空 body**；现在保留已 marshal 的 `[]byte`，每次尝试新建 reader。导出面零变化（纯缺陷修复）。
   取证与复核：`httpclient/retry_body_test.go` 的 `TestDo_RetriesWithBody_PreservesBodyOnEveryAttempt`（服务端逐次记录收到的 body）——修复前 `attempt 2 body = ""`，修复后两次都是 `{"n":1}`；把「每轮新建 reader」改回「循环外复用」→ 该测试复红。
 

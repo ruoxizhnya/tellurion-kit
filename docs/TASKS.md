@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-10-23
-verified-by: KT-04 结案归档（4xx 返回 AppError、重试保留 body；新增 httpclient → errors 边，ADR 0002）
+verified-by: KT-05 结案归档（errors/logging 单测落地、Init 全局处置钉死；补测取证的新缺陷拆为 KT-07）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -16,7 +16,7 @@ verified-by: KT-04 结案归档（4xx 返回 AppError、重试保留 body；新�
 ## 一、本仓任务
 
 > **本仓已不是占位仓**（2026-10-22 起）：QT-05-B 落码完成，13 包全部有实现；KT-01/KT-02 两张随仓文档交付在此之前已结案。
-> 现在台账上的是**落码过程中实测出来的既有缺陷**（KT-04 / KT-05 照搬自 core、QT-05-B 按 ④「不改任何业务逻辑」刻意未动；KT-06 是 KT-03 取证时新发现）。
+> 现在台账上的是**落码过程中实测出来的既有缺陷**（KT-06 是 KT-03 取证时新发现；KT-07 是 KT-05 补测时取证。KT-03 / KT-04 / KT-05 已结案）。
 >
 > ✅ **KT-01 已结案（2026-10-22）**：`docs/SCOPE.md`（13 包逐包准入/禁入 + 词表 + 实测偏差九条）+ `tools/check_scope`（CI 步骤「包边界核对」）落地，
 > 整条搬进 [`archive/TASKS-2026-10-22-archived.md`](archive/TASKS-2026-10-22-archived.md)。
@@ -86,28 +86,14 @@ verified-by: KT-04 结案归档（4xx 返回 AppError、重试保留 body；新�
 > **对 QT-07 / 使用方的直接后果**：4xx 的返回语义已从「`err == nil` 的成功」改为 `nil` + `*errors.AppError`（**breaking**，CHANGELOG `[Unreleased]` 在册），
 > `err == nil` 从此只代表 2xx/3xx；重试仍**不看方法**，有副作用的调用须显式 `New(baseURL, timeout, 0)`。口径唯一真相在 `docs/api-schema.md` §3。
 
-### KT-05 · `errors` 零单测、`logging` 的初始化路径未测（含一个包级可变全局）[P2] ⬜
+### KT-05 · `errors` 零单测、`logging` 的初始化路径未测（含一个包级可变全局）[P2] ✅ 完成（2026-10-23，已归档）
 
-- **① 目标**：本仓最底层的两个包（所有仓都会 `require`）有**自己的**单测，其导出面的语义变化能被本仓 CI 当场逮住，而不是等使用方红。
-- **② 上下文**：实测（2026-10-22，`go test ./... -count=1`）：`errors` 包**没有测试文件**（输出 `? …/errors [no test files]`），
-  core 的 `pkg/errors` 同样没有——QT-05-B 逐字照搬，所以这个空洞是**继承来的**，不是本次引入的。
-  `errors` 今天只被间接覆盖：`httpserver/errors_test.go` 有 12 处用 `apperrors.ErrCode*` 走「分类 → 状态码」那条链
-  （`StatusForAppError`），但 `Wrap`/`Wrapf` 的 `%w` 链、`AppError.Is` **按分类码相等**（不是实例身份）、`ToMap`、`captureStack` 都没有直接断言。
-  `logging` 只有 `masking_test.go`；`logger.go` 的 `Init(level, format)` 与 `WithContext(map)` 未测，
-  且 `logging.Logger` 是**包级可变全局**（`logger.go:12`），`Init` 写它 —— 并行测试里同时 `Init` 就是数据竞争，
-  而本机 `-race` 不可用（无 cgo/gcc，见 QT-05-B 结案记录），所以这类问题今天**测不出来**。
-- **③ 要求**：① `errors` 补表驱动单测：`Is` 按码相等的正/反例（同码不同 message → 真；不同码 → 假）、`Unwrap` 链能被 `errors.Is`/`As` 穿透、
-  `WithOperation`/`WithCause` 的返回值语义（是否改原值）、`ToMap` 的字段集合、`Error()` 文案在有无 `Cause` 两种形状下的断言；
-  ② `logging` 补 `Init` 的级别与格式（json/console）解析断言 + `WithContext` 的字段注入断言；
-  ③ 就 `Logger` 全局给一个处置：要么在文档里钉死「`Init` 只能在启动期调一次，测试不得并发调」，
-  要么把它改成可注入（新导出面 = MINOR，且会影响所有使用方，**要单独裁决不要顺手改**）；
-  ④ 若 ③ 选了「文档钉死」，`docs/api-schema.md` §1 的 `logging` 行要写这条约束。
-- **④ 约束与非目标**：**不改 `errors` / `logging` 的现有行为**（补测暴露出的行为问题另立单，按 KT-03 的两步法处理）；
-  不引第三方断言库之外的新依赖（`testify` 已在 `go.mod`）；不做 `zerolog` 的全局钩子改造。
-- **⑤ 验收**：`go test ./errors/... ./logging/... -count=1` 绿且**不再是 `[no test files]`**；
-  `go test ./... -count=1 -cover` 里 `errors` 与 `logging` 的覆盖率有非零数字（把数字写进结案记录，不设阈值门槛——设了就成了凑数）；
-  **破坏验证**：把 `AppError.Is` 改成 `return false` → 新增测试必须红；把 `MaskMap` 的敏感键判断去掉 → `masking_test.go` 必须红（证明新测与旧测都在咬）。
-- **⑥ 边界**：只做这两个包的测试与全局的处置裁决；`decimal` / `httpclient` 的行为缺陷是 KT-03 / KT-04。
+> 六字段正文与结案记录（`errors` 表驱动覆盖面、`logging` 的 `parseLevel` / `newWriter` 提取与断言、两包覆盖率 100.0%、③ 全局处置裁决、
+> 两条破坏验证的真退出码、补测时取证的 `Init` 强制 Debug 缺陷拆为 KT-07）在
+> [`archive/TASKS-2026-10-23-archived.md`](archive/TASKS-2026-10-23-archived.md)。本文件按规则只留未完成项，这里只留指针。
+>
+> **对使用方的直接后果**：`logging.Init` 只能在启动期调一次（它同时写包级 `Logger` 与 zerolog 全局级别），口径钉在 `docs/api-schema.md` §1；
+> `errors` 的「`Is` 按分类码相等、`Wrap` 保留 `%w` 链、`ToMap` 只出 `code` / `message` / `op`」从今天起由本仓 CI 直接咬住。导出面零变化。
 
 ### KT-06 · `decimal.Div` 定标路径的静默精度/量纲损失（KT-03 取证时新发现）[P2] ⬜
 
@@ -120,6 +106,22 @@ verified-by: KT-04 结案归档（4xx 返回 AppError、重试保留 body；新�
 - **④ 约束与非目标**：**不改** KT-03 已裁决的 half-away-from-zero 口径；不引 `rounding-mode` 配置项；不动 `Mul` / `Round` / `FromString`；不新增导出符号（`ErrOverflow` 已导出）。
 - **⑤ 验收**：`go test ./decimal/... -count=1` 绿；`Div(New(25,1), New(1,0), 0)` = 3、`Div(New(25,1), New(8,0), 0)` = 0（0.3125）；**破坏验证**：把任一路径改回预截断 → 对应测试必须红。
 - **⑥ 边界**：只做 `Div` 的定标与溢出路径；舍入口径是 KT-03，`httpclient` 是 KT-04。
+
+### KT-07 · `logging.Init` 的 `level` 参数被无条件覆盖为 Debug（KT-05 补测时取证）[P2] ⬜
+
+- **① 目标**：`logging.Init(level, format)` 的 `level` 参数真正决定全局日志级别，不再被启动期硬编码的 Debug 覆盖。
+- **② 上下文**：实测（2026-10-23，`logging/logger_test.go` 的 `TestInit_LevelIsAlwaysForcedToDebug`）：`logging/logger.go` 先
+  `zerolog.SetGlobalLevel(parseLevel(level))`，紧接着**无条件**再 `zerolog.SetGlobalLevel(zerolog.DebugLevel)`（源码注释 "Force debug level for testing"）。
+  于是 `Init("error", "json")` 之后 `zerolog.GlobalLevel()` 仍是 `DebugLevel` —— 生产环境会把 Debug 日志全打出来，`level` 配置完全失效。
+  该缺陷照搬自 core `pkg/logging`；KT-05 ④ 明确「不改现有行为」，所以 KT-05 只钉住现状并登记在本单。
+- **③ 要求**：① 删除那次无条件覆盖，让 `level` 生效；② 保留 `parseLevel` 的既有映射与「未知值回落 info」口径；
+  ③ 把 `TestInit_LevelIsAlwaysForcedToDebug` 改写为「`Init(level, …)` 后 `zerolog.GlobalLevel() == parseLevel(level)`」的表驱动断言
+  （该测试当前钉的是缺陷行为，**必须随修复一起改**）；④ CHANGELOG PATCH 节记账（导出行为变化：日志级别从「恒为 Debug」变为「按配置」）。
+- **④ 约束与非目标**：不改 `Init` 的签名与 `Logger` 包级全局形状（改成可注入是另一张单，KT-05 ③ 已裁决「文档钉死」）；
+  不动脱敏、`WithContext`、writer 选择；不引 zerolog 全局钩子改造。
+- **⑤ 验收**：`go test ./logging/... -count=1` 绿；改写后的测试在 `Init("error", …)` 时 `GlobalLevel() == ErrorLevel`、`Init("info", …)` 时为 `InfoLevel`；
+  **破坏验证**：把删掉的 `SetGlobalLevel(DebugLevel)` 加回去 → 改写后的测试必须红。全仓 `go build ./...` / `go vet ./...` / `go test ./... -count=1` / 两个 `tools/` 护栏绿。
+- **⑥ 边界**：只做 `Init` 的级别生效路径；`Logger` 全局的可注入化与 `errors` 包不在本单。
 
 ---
 
