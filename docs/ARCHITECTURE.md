@@ -20,11 +20,12 @@ verified-by: QT-05-B 落地（§2 十三包已由目标态变为现状；§8 S1 
   clock · sandbox(staticcheck/runner) · db(connection/migrate/DSN)
 ```
 
-十三包 QT-05-B 已全部落地（2026-10-22）。包间**只有三条**同仓内部边，实测（`grep -rn "ruoxizhnya/tellurion-kit/" --include="*.go"`，排除测试与 `tools/`）：
+十三包 QT-05-B 已全部落地（2026-10-22）。包间**只有四条**同仓内部边，实测（`grep -rn "ruoxizhnya/tellurion-kit/" --include="*.go"`，排除测试与 `tools/`）：
 
 ```
-httpclient → logging      httpserver → errors      authz → auth
+httpclient → logging · errors      httpserver → errors      authz → auth
 ```
+（`httpclient → errors` 由 KT-04 增加，理由见 [ADR 0002](adr/0002-httpclient-4xx-作为错误.md)。）
 
 再加一条就是新耦合，要在 ADR 里留账（判据与出处见 [`SCOPE.md`](SCOPE.md) §3 的「kit 内允许依赖」列与 §4）。
 

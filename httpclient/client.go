@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
+	apperrors "github.com/ruoxizhnya/tellurion-kit/errors"
 	"github.com/ruoxizhnya/tellurion-kit/logging"
 )
 
@@ -54,13 +56,13 @@ type Response struct {
 
 // Do sends an HTTP request with retry logic and exponential backoff.
 func (c *Client) Do(ctx context.Context, req Request) (*Response, error) {
-	var bodyReader io.Reader
+	var payload []byte
 	if req.Body != nil {
 		data, err := json.Marshal(req.Body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
-		bodyReader = bytes.NewReader(data)
+		payload = data
 	}
 
 	url := c.baseURL + req.Path
@@ -77,6 +79,14 @@ func (c *Client) Do(ctx context.Context, req Request) (*Response, error) {
 				return nil, ctx.Err()
 			case <-time.After(backoff):
 			}
+		}
+
+		// Build a fresh reader for every attempt: the reader handed to the
+		// first attempt is consumed to EOF, so reusing it would send an
+		// empty body on retries.
+		var bodyReader io.Reader
+		if payload != nil {
+			bodyReader = bytes.NewReader(payload)
 		}
 
 		r, err := http.NewRequestWithContext(ctx, req.Method, url, bodyReader)
@@ -132,6 +142,12 @@ func (c *Client) Do(ctx context.Context, req Request) (*Response, error) {
 			continue
 		}
 
+		// A 4xx answer is a caller error, never a success: surfacing it as
+		// an AppError makes `if err != nil` catch it.
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			return nil, newStatusError(resp.StatusCode, body, req.Method, req.Path)
+		}
+
 		return &Response{
 			StatusCode: resp.StatusCode,
 			Body:       body,
@@ -139,6 +155,36 @@ func (c *Client) Do(ctx context.Context, req Request) (*Response, error) {
 	}
 
 	return nil, fmt.Errorf("max retries (%d) exceeded: %w", c.maxRetries, lastErr)
+}
+
+// maxErrorBodyRunes bounds the upstream body quoted in a status error so the
+// message stays readable (and truncation never splits a UTF-8 rune).
+const maxErrorBodyRunes = 200
+
+// newStatusError converts a 4xx response into a structured AppError. The
+// upstream body is quoted because it usually carries the explanation that
+// callers need, and the response itself is not returned alongside an error.
+func newStatusError(status int, body []byte, method, path string) *apperrors.AppError {
+	code := apperrors.ErrCodeInvalidInput
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		code = apperrors.ErrCodePermission
+	case http.StatusNotFound:
+		code = apperrors.ErrCodeNotFound
+	case http.StatusConflict:
+		code = apperrors.ErrCodeConflict
+	case http.StatusRequestTimeout:
+		code = apperrors.ErrCodeTimeout
+	}
+
+	msg := fmt.Sprintf("unexpected HTTP status %d", status)
+	if snippet := strings.TrimSpace(string(body)); snippet != "" {
+		if runes := []rune(snippet); len(runes) > maxErrorBodyRunes {
+			snippet = string(runes[:maxErrorBodyRunes]) + "..."
+		}
+		msg += ": " + snippet
+	}
+	return apperrors.New(code, msg).WithOperation(method + " " + path)
 }
 
 // Get performs a GET request.

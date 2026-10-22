@@ -23,7 +23,7 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
 | `id` | 与域无关的 ID：`JobID` / `SubscriptionID` | job_id / 订阅 id | ✅ 已落地；**`OrderID` 不在本仓**（交易域，SCOPE §5 #1）；UUIDv7 生成器是包内机制，**未导出通用入口** |
 | `decimal` | 定点小数（scale ≤ 18、`Round(scale)`、`Div(a, b, resultScale)`） | 价格与金额（禁止 float 做钱） | ✅ 已落地；`Div` 的舍入口径：**四舍五入（half away from zero）**——余数超过**或恰好等于**半个单位都向远离零进位，与 `Round` 同口径（KT-03 ② 裁决，2026-10-23）。`resultScale` 小于被除数 scale 时仍先截断被除数再除（精度缺口登记在 **KT-06**）。按 README，舍入口径属 MAJOR 语义 |
 | `statistics` | 均值 / 方差 / 相关 / 分位 / 回归 / 排名 / z 分数 | 指标计算 | ✅ 已落地；**只收纯数学**——年化窗口与收益率口径留 core（SCOPE §5 #2） |
-| `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码） |
+| `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码）；**4xx 返回 `*errors.AppError`**，`err == nil` 只代表 2xx/3xx（口径见 §3） |
 | `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式 | 各服务 HTTP 面 | ✅ 已落地（同上） |
 | `auth` | token 签发 / 解析 / 刷新、bcrypt、claims、gin 中间件 | API 保护（认证） | ✅ 已落地；**只收机制**——`users` / `audit_logs` 的 SQL 与角色语义留 core，身份回读经 `IdentityLoader` 端口（SCOPE §5 #3） |
 | `authz` | route key → `Rule`（Public / AnyAuthenticated / Roles）+ 执法中间件 | API 保护（鉴权） | ✅ 已落地；**路由→角色的表由各服务维护**，未登记的变更端点 fail-closed（SCOPE §5 #4） |
@@ -68,9 +68,12 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
   重复跑同一批语句的结果完全由语句自己决定 —— core 的做法是每条都写成 `CREATE TABLE IF NOT EXISTS` 这类幂等 DDL。
   使用方若传入非幂等语句（`CREATE TABLE` 无 `IF NOT EXISTS`、`INSERT` 无冲突处理），第二次运行就会失败，这是**预期行为**而不是缺陷。
 - `httpclient` 的重试**不看方法**：传输错误、读响应体失败、5xx、429 都会重试，POST 也在内 —— 它不保证上游端点幂等，
-  有副作用的调用要不要用带重试的 `Client` 由调用方决定（`New(baseURL, timeout, 0)` 可关掉重试）。
-  ⚠️ 已登记缺陷 **KT-04**：带 body 的请求在**第二次及以后的尝试会发出空 body**（`*bytes.Reader` 被首次尝试消费后未 rewind），
-  且 4xx（429 除外）按**成功**返回、`err == nil`，调用方必须自己看 `Response.StatusCode`。
+  有副作用的调用要不要用带重试的 `Client` 由调用方决定（`New(baseURL, timeout, 0)` 可关掉重试；这是唯一开关，**没有**按方法自动降级）。
+- `httpclient` 的请求体在**每次尝试都完整重发**（已 marshal 的 `[]byte` 每轮新建 reader），重试不会变成空 body。
+- **4xx（429 除外）不是成功**：`Do` 返回 `nil` + `*errors.AppError`，错误码按状态映射 ——
+  400 / 422 / 其余未映射 4xx → `INVALID_INPUT`，401 / 403 → `PERMISSION`，404 → `NOT_FOUND`，408 → `TIMEOUT`，409 → `CONFLICT`。
+  `message` 以 `unexpected HTTP status <code>` 开头并附上游响应体（截断 200 字），`op` 是 `"<METHOD> <Path>"`。
+  调用方按 `if err != nil` 处理即可；`err == nil` 当且仅当 2xx / 3xx（429 在重试耗尽后仍返回「max retries exceeded」错误）。
 
 ## 4. 版本与兼容
 

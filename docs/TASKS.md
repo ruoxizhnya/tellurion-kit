@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-10-23
-verified-by: KT-03 结案归档（Div 口径裁决为 half away from zero；取证时新立 KT-06）
+verified-by: KT-04 结案归档（4xx 返回 AppError、重试保留 body；新增 httpclient → errors 边，ADR 0002）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -68,7 +68,7 @@ verified-by: KT-03 结案归档（Div 口径裁决为 half away from zero；取�
 >   逐条在 `docs/SCOPE.md` §5。**这不是"顺手改一下"能过的**：core 侧要么保留自己的实现，要么按裁决改调用点。
 > - **QT-07（S2 打 tag）**：`v0.1.0` 那天 README 矩阵要有 `v0.1` 行、CHANGELOG 要把 `[Unreleased]` 搬进版本节（KT-02 的护栏会红）。
 >   ⚠️ 打 tag 前应先裁决 **KT-04 / KT-05 / KT-06**：都属导出面语义或底层行为，`v0.1.0` 之后再改就是 breaking（要按 README 规则记账）。
->   KT-03 已于 2026-10-23 结案（`Div` 口径冻结为 half away from zero）。
+>   KT-03 已于 2026-10-23 结案（`Div` 口径冻结为 half away from zero）；KT-04 同日结案（4xx → `*AppError`、重试保留 body、新增 `httpclient → errors` 边）。
 
 ### KT-03 · `decimal.Div` 的舍入口径与源码注释不一致（裁决口径 + 让注释与实现同一句话）[P1] ✅ 完成（2026-10-23，已归档）
 
@@ -78,30 +78,13 @@ verified-by: KT-03 结案归档（Div 口径裁决为 half away from zero；取�
 > **对 KT-06 / QT-07 的直接后果**：口径已冻结为 **half away from zero（四舍五入）**，`docs/api-schema.md` §1 在册；
 > KT-06 只动定标与溢出路径，**不得回改口径**；S2 打 `v0.1.0` 时 CHANGELOG 的 breaking 条目已就位（`[Unreleased]` 里第一条）。
 
-### KT-04 · `httpclient` 重试发空 body + 4xx 静默当成功（两条都已实测取证）[P1] ⬜
+### KT-04 · `httpclient` 重试发空 body + 4xx 静默当成功（两条都已实测取证）[P1] ✅ 完成（2026-10-23，已归档）
 
-- **① 目标**：`httpclient.Client.Do` 的重试**不丢请求体**，且调用方不会把一个 4xx 当成成功。
-- **② 上下文**：实测取证（2026-10-22，临时 module `replace` 到本仓跑真 `httptest` 服务，退出码 0）：
-  `maxRetries=2` 的 POST 第一次服务端收到 `len=17`，**第二次收到 `len=0`** —— `client.go:57-64` 把 body 做成一个 `*bytes.Reader` 后在重试循环里复用，
-  首次尝试已把它读到 EOF，`http.NewRequestWithContext` 不会自动 rewind（`GetBody` 只用于重定向）；
-  同一次实测里 400 响应回来是 `err=<nil>` + `StatusCode:400`（`client.go:135` 对非 5xx/429 一律当成功返回）。
-  重试触发面是「传输错误 / 读 body 失败 / 5xx / 429」且**不看方法**，所以丢 body 会打在 POST 上。
-  代码逐字搬自 core `pkg/httpclient/client.go`，QT-05-B 未改。现状已登记在 `docs/api-schema.md` §3。
-  ⚠️ **顺带实测的代价**：退避是硬编码的 `time.After(1<<(attempt-1) * time.Second)`，不可注入，所以 6 条重试测试真的睡——
-  `go test ./httpclient/... -count=1` 实测 **≈14s**（两次取样 14.156s / 14.140s；4 条各 3s + 2 条各 1s），是本仓测试耗时的绝大部分。
-  改重试语义时若不让退避可注入（clock 或 interval 参数），这份代价会照旧留在每次 CI 上。
-- **③ 要求**：① 先写**复现测试**（`httptest` 数收到的 body 长度序列 + 断言 4xx 的 `err`/`StatusCode` 语义），改代码前必须红；
-  ② 修 body 复用：每次尝试重新构造 reader（保留已 marshal 的 `[]byte`，`bytes.NewReader(data)` 每轮新建）；
-  ③ 裁决 4xx 的返回语义（返回 `*AppError`（`ErrCodeInvalidInput` 之类）还是保持 `err=nil` 只在文档里钉死），
-  **两者选一即可，但必须与 `docs/api-schema.md` §3 同一句话**；若选前者，那是 breaking（调用方的 `if err != nil` 分支会变），按 README 规则记账；
-  ④ 裁决「非幂等方法要不要重试」：要么加一个「只对幂等方法重试」的开关，要么在文档里写明由调用方用 `maxRetries=0` 关掉——不要留成隐含行为；
-  ⑤ 同步 core 侧处置，在 `tellurion:docs/TASKS.md` 留同号指针。
-- **④ 约束与非目标**：**不引熔断器**（`api-schema.md` §5 已登记为"今天没有，要加是 MINOR 且先要有使用方"）；不改 `Request` / `Response` 的字段形状（那是导出面 breaking，单独裁决）；
-  不动退避算法（`1<<(attempt-1)` 秒）——要改另立单。
-- **⑤ 验收**：`go test ./httpclient/... -count=1` 绿；复现测试**先红后绿**（真退出码留证）；
-  **破坏验证**：把「每轮新建 reader」改回「循环外复用同一个 reader」→ 复现测试必须红；
-  `docs/api-schema.md` §3 的 ⚠️ 段落与最终语义一致（不再有"已登记缺陷"的口径，或明确写清保留哪一半）。
-- **⑥ 边界**：只做 `httpclient`；`decimal` 是 KT-03；core 侧切换是 QT-05 主单。
+> 六字段正文与结案记录（① 复现测试的先红后绿真退出码、③ 4xx → `*AppError` 的裁决与错误码映射、④ 重试不看方法的文档钉死、破坏验证、新增 `httpclient → errors` 边与 ADR 0002、core 侧处置）在
+> [`archive/TASKS-2026-10-23-archived.md`](archive/TASKS-2026-10-23-archived.md)。本文件按规则只留未完成项，这里只留指针。
+>
+> **对 QT-07 / 使用方的直接后果**：4xx 的返回语义已从「`err == nil` 的成功」改为 `nil` + `*errors.AppError`（**breaking**，CHANGELOG `[Unreleased]` 在册），
+> `err == nil` 从此只代表 2xx/3xx；重试仍**不看方法**，有副作用的调用须显式 `New(baseURL, timeout, 0)`。口径唯一真相在 `docs/api-schema.md` §3。
 
 ### KT-05 · `errors` 零单测、`logging` 的初始化路径未测（含一个包级可变全局）[P2] ⬜
 

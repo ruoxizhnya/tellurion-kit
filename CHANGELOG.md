@@ -18,6 +18,15 @@
   **使用方影响**：受影响面 = 直接调 `Div` 且商恰好落在半个单位的算式（本仓与 core 今天**零生产调用点**，core `pkg/decimal` 仍标「待采用」）。本仓尚未发版，按 README 的 0.x 规则记 breaking、不 bump 版本号；`v0.1.0` 之前 pin `main` 的使用方需自查。判据：`decimal/div_rounding_test.go` 的 `TestDiv_Rounding`（同表覆盖正负两侧、除数正负、奇偶除数）。
   **core 侧处置**：本次**不改** core `pkg/decimal` 的同一份代码（零生产调用、且 core 切本仓依赖属 QT-05 主单）；处置结论已写入 `tellurion:docs/TASKS.md` 的跨仓索引，同号指针为 KT-03。
 
+### 变更（breaking：导出面语义 —— `httpclient` 的 4xx 返回）
+
+- **KT-04 ③**（2026-10-23）：`httpclient.Client.Do` 把 4xx（429 除外，429 仍走重试）从「`err == nil` 的成功」改为返回 `nil` + `*errors.AppError`。
+  **破坏性**：4xx 时 `err` 由 `nil` 变为非 nil、`*Response` 由非 nil 变为 `nil`；原先靠 `resp.StatusCode` 判 4xx、`if err != nil` 只处理传输错误的调用方，要改成按错误处理（`errors.As` 到 `*AppError` 取分类码）。
+  错误码映射：400 / 422 / 未映射 4xx → `INVALID_INPUT`，401 / 403 → `PERMISSION`，404 → `NOT_FOUND`，408 → `TIMEOUT`，409 → `CONFLICT`；`message` 以 `unexpected HTTP status <code>` 开头并附上游响应体（截断 200 字），`op` 为 `"<METHOD> <Path>"`。
+  **裁决理由**：fail-closed —— `err != nil` 必须是调用方唯一的「没成功」门，否则每个使用方都要各自记得再看 `StatusCode`。详见 [`docs/adr/0002-httpclient-4xx-作为错误.md`](docs/adr/0002-httpclient-4xx-作为错误.md)；由此新增 `kit` 内部边 `httpclient → errors`。
+  **④ 非幂等方法**：重试**仍不看方法**（未加开关）；有副作用的调用由调用方用 `New(baseURL, timeout, 0)` 关重试，口径钉在 `docs/api-schema.md` §3。要加「只对幂等方法重试」的开关属新导出面，另立单。
+  **使用方影响**：core `pkg/httpclient` 的调用点（`pkg/data/tushare.go`、`pkg/backtest/engine.go`、`pkg/marketdata/http_provider.go`）在切到本仓依赖前**不受影响**（仍用 core 自己的副本）；切换后它们都已先判 `err != nil`，语义只会变严格。本仓尚未发版，按 0.x 规则记 breaking、不 bump 版本号。
+
 ### 变更（MINOR 级：新增导出面 —— 13 包落码）
 
 - **QT-05-B**（2026-10-22）：S1 工具层落地。13 个包全部有实现，`go build ./...` / `go vet ./...` / `go test ./...` / `go run ./tools/check_scope` / `go run ./tools/check_release_matrix` 全绿（真退出码 0），单独 checkout 即可自证（R1/R2）。
@@ -29,6 +38,9 @@
   - **顺带登记两条既有缺陷（照搬自 core，本次刻意不改）**：`decimal.Div` 的舍入口径与源码注释不符（注释写 banker's rounding，实现是恰好一半向零截断）→ **KT-03**；`httpclient` 带 body 的请求在第二次及以后的尝试发出**空 body**，且 4xx（429 除外）按成功返回 → **KT-04**（两条都已实测取证）。改口径属 MAJOR 语义变更，不在「不改任何业务逻辑」的 QT-05-B 里顺手做。
 
 ### 变更（PATCH 级：文档与仓内自查工具，不改导出面）
+
+- **KT-04 ②**（2026-10-23）：`httpclient` 的重试不再丢请求体。原先 `*bytes.Reader` 在重试循环外只建一次，首次尝试读到 EOF 后，第二次及以后的尝试发出**空 body**；现在保留已 marshal 的 `[]byte`，每次尝试新建 reader。导出面零变化（纯缺陷修复）。
+  取证与复核：`httpclient/retry_body_test.go` 的 `TestDo_RetriesWithBody_PreservesBodyOnEveryAttempt`（服务端逐次记录收到的 body）——修复前 `attempt 2 body = ""`，修复后两次都是 `{"n":1}`；把「每轮新建 reader」改回「循环外复用」→ 该测试复红。
 
 - **KT-03 ①**（2026-10-23）：`decimal.Div` 的舍入口径取证。新增表驱动测试 `decimal/div_rounding_test.go` 钉住当前行为（恰好一半的正负两侧、除数正负、奇偶除数、`resultScale` 大于/小于被除数 scale），并把源码注释与 `docs/api-schema.md` §1 改成与实现同一句话（当前：余数严格超过半个单位才向远离零进位，恰好一半向零截断）。导出行为零变化。
   取证时另发现两条既有缺陷：`resultScale` 小于被除数 scale 时**先截断被除数再除**（`2.5 / 1` 取整得 `2`），以及 `shift > 0` 溢出时**静默少乘 10 的幂**（错量级）——按「不顺手修未列出语义」拆为 **KT-06**。

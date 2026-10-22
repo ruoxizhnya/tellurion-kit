@@ -110,11 +110,11 @@ func TestDo_DoesNotRetryOn404(t *testing.T) {
 
 	c := New(server.URL, 10*time.Second, 3)
 	resp, err := c.Do(context.Background(), Request{Method: "GET", Path: "/test"})
-	if err != nil {
-		t.Fatalf("expected no error for 404, got: %v", err)
+	if err == nil {
+		t.Fatal("expected an error for 404")
 	}
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", resp.StatusCode)
+	if resp != nil {
+		t.Errorf("expected nil response for 404, got %+v", resp)
 	}
 	if atomic.LoadInt32(&attempts) != 1 {
 		t.Errorf("expected 1 attempt (no retry for 404), got %d", atomic.LoadInt32(&attempts))
