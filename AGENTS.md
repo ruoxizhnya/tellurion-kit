@@ -59,6 +59,7 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 | `github.com/golang-jwt/jwt/v5` | v5.3.1 | token 签发 / 解析 | `auth` |
 | `golang.org/x/crypto` | v0.53.0 | bcrypt | `auth` |
 | `github.com/jackc/pgx/v5` | v5.7.3 | PG 连接 / 迁移执行机制 | `db` |
+| `github.com/redis/go-redis/v9` | v9.7.3 | Redis 连接 | `db` |
 | `github.com/prometheus/client_golang` | v1.23.2 | metrics 注册表 | `observability` |
 | `golang.org/x/sys` | v0.46.0 | Windows Job Object（进程限额） | `sandbox/runner`（仅 `_windows.go`） |
 | `github.com/stretchr/testify` | v1.11.1 | **仅测试**断言 | 各包 `_test.go` |
