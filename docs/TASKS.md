@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-22
-verified-by: QT-05-B 结案归档（13 包落码 + 文档真相源对齐；新立 KT-03 / KT-04 两条既有缺陷单）
+last-verified: 2026-10-23
+verified-by: KT-03 ① 取证（Div 舍入口径钉住 + 注释/文档对齐现状；新立 KT-06 登记取证时发现的两条定标缺陷）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -134,6 +134,18 @@ verified-by: QT-05-B 结案归档（13 包落码 + 文档真相源对齐；新�
   `go test ./... -count=1 -cover` 里 `errors` 与 `logging` 的覆盖率有非零数字（把数字写进结案记录，不设阈值门槛——设了就成了凑数）；
   **破坏验证**：把 `AppError.Is` 改成 `return false` → 新增测试必须红；把 `MaskMap` 的敏感键判断去掉 → `masking_test.go` 必须红（证明新测与旧测都在咬）。
 - **⑥ 边界**：只做这两个包的测试与全局的处置裁决；`decimal` / `httpclient` 的行为缺陷是 KT-03 / KT-04。
+
+### KT-06 · `decimal.Div` 定标路径的静默精度/量纲损失（KT-03 取证时新发现）[P2] ⬜
+
+- **① 目标**：`Div` 在**任意** `resultScale` 下都给出「精确商 + 一次舍入」的结果，或在无法精确时显式返回 `ErrOverflow`，不再静默给出错量级/多次截断的值。
+- **② 上下文**：KT-03 ① 取证时实测（`decimal/div_rounding_test.go` 的 `TestDiv_ResultScaleBelowDividendScale`）：
+  `Div(New(25,1), New(1,0), 0)`（2.5 / 1）→ **2**，正确应是 3——`shift < 0` 分支在 `decimal.go` 把被除数逐位 `/10` 截断后再除，信息在舍入前就被丢掉；
+  另一条：`shift > 0` 分支在 `numerator` 越过 `1<<62` 时直接 `break`（不再乘 10 的幂），于是商**静默小了 10^k 倍**（量纲错误，不是精度损失）。
+  两条都在 KT-03 之前就存在，KT-03 只裁决「恰好一半怎么走」，按「不顺手修未列出语义」的规则拆到本单。
+- **③ 要求**：① 消除预截断：`shift < 0` 时要么在分母侧乘 10 的幂、要么先约分再除、要么走大整数，三条路任选其一，**溢出处必须 `ErrOverflow` 而不是截断**；② `shift > 0` 的溢出 `break` 同样改成 fail-closed（返回 `ErrOverflow`），禁止静默少乘；③ 补表驱动测试：`resultScale` 小于/大于被除数 scale 两侧、`a.value` 接近 `1<<62` 的溢出边界；④ 同步 core `pkg/decimal` 的同一份代码处置，在 `tellurion:docs/TASKS.md` 留同号指针。
+- **④ 约束与非目标**：**不改** KT-03 已裁决的 half-away-from-zero 口径；不引 `rounding-mode` 配置项；不动 `Mul` / `Round` / `FromString`；不新增导出符号（`ErrOverflow` 已导出）。
+- **⑤ 验收**：`go test ./decimal/... -count=1` 绿；`Div(New(25,1), New(1,0), 0)` = 3、`Div(New(25,1), New(8,0), 0)` = 0（0.3125）；**破坏验证**：把任一路径改回预截断 → 对应测试必须红。
+- **⑥ 边界**：只做 `Div` 的定标与溢出路径；舍入口径是 KT-03，`httpclient` 是 KT-04。
 
 ---
 
