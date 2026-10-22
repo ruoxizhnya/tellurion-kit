@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-10-23
-verified-by: KT-03 ① 取证（Div 舍入口径钉住 + 注释/文档对齐现状；新立 KT-06 登记取证时发现的两条定标缺陷）
+verified-by: KT-03 结案归档（Div 口径裁决为 half away from zero；取证时新立 KT-06）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -16,7 +16,7 @@ verified-by: KT-03 ① 取证（Div 舍入口径钉住 + 注释/文档对齐现�
 ## 一、本仓任务
 
 > **本仓已不是占位仓**（2026-10-22 起）：QT-05-B 落码完成，13 包全部有实现；KT-01/KT-02 两张随仓文档交付在此之前已结案。
-> 现在台账上的是**落码过程中实测出来的既有缺陷**（KT-03 / KT-04，两条都照搬自 core、QT-05-B 按 ④「不改任何业务逻辑」刻意未动）。
+> 现在台账上的是**落码过程中实测出来的既有缺陷**（KT-04 / KT-05 照搬自 core、QT-05-B 按 ④「不改任何业务逻辑」刻意未动；KT-06 是 KT-03 取证时新发现）。
 >
 > ✅ **KT-01 已结案（2026-10-22）**：`docs/SCOPE.md`（13 包逐包准入/禁入 + 词表 + 实测偏差九条）+ `tools/check_scope`（CI 步骤「包边界核对」）落地，
 > 整条搬进 [`archive/TASKS-2026-10-22-archived.md`](archive/TASKS-2026-10-22-archived.md)。
@@ -67,25 +67,16 @@ verified-by: KT-03 ① 取证（Div 舍入口径钉住 + 注释/文档对齐现�
 >   `auth` 无 SQL、`authz` 的 `Policy` 是机制、`observability` 无业务指标、`clock` 的 `ModeBacktest` → `ModeDeterministic`、`sandbox/wasm` 不在本仓），
 >   逐条在 `docs/SCOPE.md` §5。**这不是"顺手改一下"能过的**：core 侧要么保留自己的实现，要么按裁决改调用点。
 > - **QT-07（S2 打 tag）**：`v0.1.0` 那天 README 矩阵要有 `v0.1` 行、CHANGELOG 要把 `[Unreleased]` 搬进版本节（KT-02 的护栏会红）。
->   ⚠️ 打 tag 前应先裁决 **KT-03 / KT-04**：两者都属导出面语义，`v0.1.0` 之后再改就是 breaking（要按 README 规则记账）。
+>   ⚠️ 打 tag 前应先裁决 **KT-04 / KT-05 / KT-06**：都属导出面语义或底层行为，`v0.1.0` 之后再改就是 breaking（要按 README 规则记账）。
+>   KT-03 已于 2026-10-23 结案（`Div` 口径冻结为 half away from zero）。
 
-### KT-03 · `decimal.Div` 的舍入口径与源码注释不一致（裁决口径 + 让注释与实现同一句话）[P1] ⬜
+### KT-03 · `decimal.Div` 的舍入口径与源码注释不一致（裁决口径 + 让注释与实现同一句话）[P1] ✅ 完成（2026-10-23，已归档）
 
-- **① 目标**：`decimal` 的除法舍入行为有**一个**成文口径，且源码注释、实现、`docs/api-schema.md` 三处说的是同一句话。
-- **② 上下文**：`decimal/decimal.go:385` 注释写「Round-half-to-even (banker's rounding)」，`:400` 又写「Simple round-half-away-from-zero for determinism」，
-  而 `:406` 的判据是 `2*absRem > absB` —— 恰好一半（`2*absRem == absB`）时 `shouldRound=false`，即**向零截断**。三句话互相矛盾，实现是第三种。
-  代码逐字搬自 core `pkg/decimal/decimal.go`（同一份矛盾在那边也在），QT-05-B 按 ④「不改任何业务逻辑」没动它。
-  `README.md`「版本规则」把「精度与舍入口径」明确列为 **MAJOR 语义**，所以这不是注释洁癖。
-- **③ 要求**：① 先取证：写一条**钉住当前行为**的表驱动测试（含恰好一半的正负两侧、奇偶除数、`resultScale` 大于/小于被除数 scale），
-  让"今天到底是什么口径"变成可执行的断言；② 裁决目标口径（banker's / half-away-from-zero / half-toward-zero 三选一，写清为什么——
-  钱的场景通常要 half-even 或 half-up，向零截断会系统性少算）；③ 若裁决与当前实现不同，**分两步**：先改注释与文档到"当前真实行为"，
-  再单独一次改实现并按 README 记 breaking（0.x 期间 bump MINOR + CHANGELOG 写「破坏性：旧 → 新」）；④ 同步 core 侧同一份代码的处置（改 / 不改 / 等切依赖后自然收敛），在 `tellurion:docs/TASKS.md` 留同号指针。
-- **④ 约束与非目标**：**不顺手改 `Mul` / `Round` / `FromString` 的口径**（各自单独裁决）；不引入 rounding-mode 配置项（那是新导出面，要单独一张单）；
-  不在本单里做 core 的切换（属 QT-05 主单）。
-- **⑤ 验收**：`go test ./decimal/... -count=1` 绿，且新增测试**先红后绿**（钉当前行为的那条在实现变更前就绿；变更口径的那条在变更前红、变更后绿——两次真退出码都留证）；
-  `grep -n "banker" decimal/decimal.go` 的结果与裁决一致（要么消失，要么实现真的是 banker's）；`docs/api-schema.md` §1 的 `decimal` 行不再挂 ⚠️；
-  **破坏验证**：把判据从 `2*absRem > absB` 改成 `>=` → 钉当前行为的测试必须红（证明测试真的在测口径，不是恒真）。
-- **⑥ 边界**：只做 `decimal` 的除法舍入口径；`httpclient` 的重试缺陷是 KT-04；core 侧切换是 QT-05 主单。
+> 六字段正文与结案记录（① 取证的真退出码、② half-away-from-zero 的裁决理由、破坏验证、core 侧处置）在
+> [`archive/TASKS-2026-10-23-archived.md`](archive/TASKS-2026-10-23-archived.md)。本文件按规则只留未完成项，这里只留指针。
+>
+> **对 KT-06 / QT-07 的直接后果**：口径已冻结为 **half away from zero（四舍五入）**，`docs/api-schema.md` §1 在册；
+> KT-06 只动定标与溢出路径，**不得回改口径**；S2 打 `v0.1.0` 时 CHANGELOG 的 breaking 条目已就位（`[Unreleased]` 里第一条）。
 
 ### KT-04 · `httpclient` 重试发空 body + 4xx 静默当成功（两条都已实测取证）[P1] ⬜
 

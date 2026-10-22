@@ -12,7 +12,9 @@ import (
 // than prose: the table covers a tie at exactly half a unit on both
 // signs and both divisor signs, remainders above and below half, odd
 // divisors (where a tie cannot occur), and resultScale above the
-// dividend's scale.
+// dividend's scale. A tie steps away from zero (四舍五入), the same rule
+// Round uses; truncating a tie towards zero would systematically
+// undercount positive amounts.
 func TestDiv_Rounding(t *testing.T) {
 	t.Parallel()
 
@@ -38,28 +40,29 @@ func TestDiv_Rounding(t *testing.T) {
 		{name: "above_half_9_div_8_at_0", a: New(9, 0), b: New(8, 0), scale: 0, want: "1"},
 		{name: "above_half_negative_1_div_3_at_2", a: New(-1, 0), b: New(3, 0), scale: 2, want: "-0.33"},
 
-		// Exactly half a unit (KT-03 decision point).
-		{name: "tie_1_div_2_at_0", a: New(1, 0), b: New(2, 0), scale: 0, want: "0"},
-		{name: "tie_neg_1_div_2_at_0", a: New(-1, 0), b: New(2, 0), scale: 0, want: "0"},
-		{name: "tie_3_div_2_at_0", a: New(3, 0), b: New(2, 0), scale: 0, want: "1"},
-		{name: "tie_neg_3_div_2_at_0", a: New(-3, 0), b: New(2, 0), scale: 0, want: "-1"},
-		{name: "tie_5_div_2_at_0", a: New(5, 0), b: New(2, 0), scale: 0, want: "2"},
-		{name: "tie_1_div_8_at_2", a: New(1, 0), b: New(8, 0), scale: 2, want: "0.12"},
-		{name: "tie_neg_1_div_8_at_2", a: New(-1, 0), b: New(8, 0), scale: 2, want: "-0.12"},
-		{name: "tie_1_div_4_at_1", a: New(1, 0), b: New(4, 0), scale: 1, want: "0.2"},
-		{name: "tie_neg_1_div_4_at_1", a: New(-1, 0), b: New(4, 0), scale: 1, want: "-0.2"},
-		{name: "tie_3_div_4_at_1", a: New(3, 0), b: New(4, 0), scale: 1, want: "0.7"},
-		{name: "tie_5_div_4_at_1", a: New(5, 0), b: New(4, 0), scale: 1, want: "1.2"},
-		{name: "tie_1_div_20_at_1", a: New(1, 0), b: New(20, 0), scale: 1, want: "0.0"},
-		{name: "tie_1_div_16_at_3", a: New(1, 0), b: New(16, 0), scale: 3, want: "0.062"},
-		{name: "tie_3_div_16_at_3", a: New(3, 0), b: New(16, 0), scale: 3, want: "0.187"},
-		{name: "tie_1_div_64_at_4", a: New(1, 0), b: New(64, 0), scale: 4, want: "0.0156"},
+		// Exactly half a unit (KT-03 decision point): half away from zero.
+		{name: "tie_1_div_2_at_0", a: New(1, 0), b: New(2, 0), scale: 0, want: "1"},
+		{name: "tie_neg_1_div_2_at_0", a: New(-1, 0), b: New(2, 0), scale: 0, want: "-1"},
+		{name: "tie_3_div_2_at_0", a: New(3, 0), b: New(2, 0), scale: 0, want: "2"},
+		{name: "tie_neg_3_div_2_at_0", a: New(-3, 0), b: New(2, 0), scale: 0, want: "-2"},
+		{name: "tie_5_div_2_at_0", a: New(5, 0), b: New(2, 0), scale: 0, want: "3"},
+		{name: "tie_1_div_8_at_2", a: New(1, 0), b: New(8, 0), scale: 2, want: "0.13"},
+		{name: "tie_neg_1_div_8_at_2", a: New(-1, 0), b: New(8, 0), scale: 2, want: "-0.13"},
+		{name: "tie_1_div_4_at_1", a: New(1, 0), b: New(4, 0), scale: 1, want: "0.3"},
+		{name: "tie_neg_1_div_4_at_1", a: New(-1, 0), b: New(4, 0), scale: 1, want: "-0.3"},
+		{name: "tie_3_div_4_at_1", a: New(3, 0), b: New(4, 0), scale: 1, want: "0.8"},
+		{name: "tie_5_div_4_at_1", a: New(5, 0), b: New(4, 0), scale: 1, want: "1.3"},
+		{name: "tie_1_div_20_at_1", a: New(1, 0), b: New(20, 0), scale: 1, want: "0.1"},
+		{name: "tie_1_div_16_at_3", a: New(1, 0), b: New(16, 0), scale: 3, want: "0.063"},
+		{name: "tie_3_div_16_at_3", a: New(3, 0), b: New(16, 0), scale: 3, want: "0.188"},
+		{name: "tie_1_div_64_at_5", a: New(1, 0), b: New(64, 0), scale: 5, want: "0.01563"},
 		// The sign of the quotient follows the sign of b as well.
-		{name: "tie_1_div_neg_2_at_0", a: New(1, 0), b: New(-2, 0), scale: 0, want: "0"},
-		{name: "tie_neg_1_div_neg_2_at_0", a: New(-1, 0), b: New(-2, 0), scale: 0, want: "0"},
+		{name: "tie_1_div_neg_2_at_0", a: New(1, 0), b: New(-2, 0), scale: 0, want: "-1"},
+		{name: "tie_neg_1_div_neg_2_at_0", a: New(-1, 0), b: New(-2, 0), scale: 0, want: "1"},
 
 		// resultScale above the dividend's scale: extra places are exact
-		// or truncated, never rounded by accident.
+		// unless the quotient still has a remainder (then the tie rule
+		// above applies).
 		{name: "scale_above_dividend_exact", a: New(25, 1), b: New(4, 0), scale: 3, want: "0.625"},
 	}
 
@@ -94,7 +97,7 @@ func TestDiv_ResultScaleBelowDividendScale(t *testing.T) {
 		want  string
 	}{
 		{name: "2.5_div_1_at_0", a: New(25, 1), b: New(1, 0), scale: 0, want: "2"},
-		{name: "2.5_div_4_at_0", a: New(25, 1), b: New(4, 0), scale: 0, want: "0"},
+		{name: "2.5_div_4_at_0", a: New(25, 1), b: New(4, 0), scale: 0, want: "1"},
 		{name: "0.015_div_1_at_0", a: New(15, 3), b: New(1, 0), scale: 0, want: "0"},
 		{name: "0.005_div_2_at_0", a: New(1, 2), b: New(2, 0), scale: 0, want: "0"},
 	}

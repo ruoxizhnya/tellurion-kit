@@ -10,6 +10,14 @@
 
 尚未发版（**零 tag**；13 包已随 QT-05-B 落码，可 import 但无兼容承诺）。首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打；在此之前使用方只能 pin `main`。
 
+### 变更（breaking：导出面语义 —— `decimal.Div` 的舍入口径）
+
+- **KT-03 ②**（2026-10-23）：`decimal.Div` 的舍入口径改为 **half away from zero（四舍五入）**。
+  **破坏性**：余数恰好为半个单位时，结果由「向零截断」变为「向远离零进位」——`Div(1, 2, 0)` `0 → 1`、`Div(-1, 2, 0)` `0 → -1`、`Div(1, 8, 2)` `0.12 → 0.13`、`Div(1, 20, 1)` `0.0 → 0.1`。
+  **裁决理由**：① 本包 `Round` 已是 half-away-from-zero，`Div` 与它必须同口径，否则「先除再舍」与「先舍再除」没有成文解释；② 向零截断在金额上系统性少算（正数偏小、负数偏大）；③ banker's rounding 虽无偏，但改它要连带改 `Round`，且与会计直觉相反，属另一张单。
+  **使用方影响**：受影响面 = 直接调 `Div` 且商恰好落在半个单位的算式（本仓与 core 今天**零生产调用点**，core `pkg/decimal` 仍标「待采用」）。本仓尚未发版，按 README 的 0.x 规则记 breaking、不 bump 版本号；`v0.1.0` 之前 pin `main` 的使用方需自查。判据：`decimal/div_rounding_test.go` 的 `TestDiv_Rounding`（同表覆盖正负两侧、除数正负、奇偶除数）。
+  **core 侧处置**：本次**不改** core `pkg/decimal` 的同一份代码（零生产调用、且 core 切本仓依赖属 QT-05 主单）；处置结论已写入 `tellurion:docs/TASKS.md` 的跨仓索引，同号指针为 KT-03。
+
 ### 变更（MINOR 级：新增导出面 —— 13 包落码）
 
 - **QT-05-B**（2026-10-22）：S1 工具层落地。13 个包全部有实现，`go build ./...` / `go vet ./...` / `go test ./...` / `go run ./tools/check_scope` / `go run ./tools/check_release_matrix` 全绿（真退出码 0），单独 checkout 即可自证（R1/R2）。

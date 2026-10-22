@@ -344,10 +344,12 @@ func MulRound(a, b Decimal, resultScale int) Decimal {
 }
 
 // Div returns a / b with the given resultScale (number of decimal
-// places in the quotient). The rounding rule is: a remainder strictly
-// above half a unit steps away from zero, a remainder strictly below
-// half keeps the truncated quotient, and an exact half is truncated
-// towards zero. Returns ErrDivisionByZero if b is zero.
+// places in the quotient). Rounding is half away from zero (四舍五入):
+// a remainder above half a unit steps away from zero, a remainder below
+// half keeps the truncated quotient, and an exact half also steps away
+// from zero. This is the same rule Round uses and avoids the systematic
+// undercount that truncating a tie towards zero produces on positive
+// amounts. Returns ErrDivisionByZero if b is zero.
 //
 // The implementation scales the dividend (or divisor) by a power of
 // ten first, then performs integer division, so no float64 is ever
@@ -356,8 +358,8 @@ func MulRound(a, b Decimal, resultScale int) Decimal {
 // Precision note: when resultScale is smaller than a's scale, the
 // dividend's excess fractional digits are dropped before the division,
 // so the rule above applies to the already truncated dividend
-// (2.5 / 1 at scale 0 answers 2, not 3). KT-03 records the rule;
-// KT-06 in docs/TASKS.md tracks making that path exact.
+// (2.5 / 1 at scale 0 answers 2, not 3). KT-06 in docs/TASKS.md tracks
+// making that path exact.
 func Div(a, b Decimal, resultScale int) (Decimal, error) {
 	if b.value == 0 {
 		return Zero, ErrDivisionByZero
@@ -391,8 +393,9 @@ func Div(a, b Decimal, resultScale int) (Decimal, error) {
 		}
 	}
 
-	// Apply the rounding rule stated in the doc comment: strictly above
-	// half steps away from zero, exactly half stays truncated.
+	// Half away from zero: step away when |remainder| is at least half
+	// of |b|. Comparing absRem with absB-absRem (equivalent to
+	// 2*absRem >= absB) keeps the arithmetic inside int64.
 	quotient := numerator / b.value
 	remainder := numerator % b.value
 	if remainder != 0 {
@@ -404,7 +407,7 @@ func Div(a, b Decimal, resultScale int) (Decimal, error) {
 		if absB < 0 {
 			absB = -absB
 		}
-		if 2*absRem > absB {
+		if absRem >= absB-absRem {
 			if (numerator < 0 && b.value > 0) || (numerator > 0 && b.value < 0) {
 				quotient--
 			} else {

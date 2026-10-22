@@ -21,7 +21,7 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
 | `logging` | 结构化日志、级别、字段约定、**敏感字段脱敏**（`masking.go`） | 全仓统一日志形状 | ✅ 已落地（QT-05-B，2026-10-22） |
 | `errors` | 分类错误 `AppError`（9 个 `ErrCode*`）+ 包装（保留 `%w`）+ 堆栈 | 与 contracts 的三类哨兵配合 | ✅ 已落地（同上） |
 | `id` | 与域无关的 ID：`JobID` / `SubscriptionID` | job_id / 订阅 id | ✅ 已落地；**`OrderID` 不在本仓**（交易域，SCOPE §5 #1）；UUIDv7 生成器是包内机制，**未导出通用入口** |
-| `decimal` | 定点小数（scale ≤ 18、`Round(scale)`、`Div(a, b, resultScale)`） | 价格与金额（禁止 float 做钱） | ✅ 已落地；`Div` 的舍入口径已成文（KT-03 ① 取证）：余数**严格超过**半个单位时向远离零进位，**恰好一半时向零截断**；`resultScale` 小于被除数 scale 时先截断被除数再除（精度缺口登记在 **KT-06**）。改口径按 README 属 MAJOR 语义变更 |
+| `decimal` | 定点小数（scale ≤ 18、`Round(scale)`、`Div(a, b, resultScale)`） | 价格与金额（禁止 float 做钱） | ✅ 已落地；`Div` 的舍入口径：**四舍五入（half away from zero）**——余数超过**或恰好等于**半个单位都向远离零进位，与 `Round` 同口径（KT-03 ② 裁决，2026-10-23）。`resultScale` 小于被除数 scale 时仍先截断被除数再除（精度缺口登记在 **KT-06**）。按 README，舍入口径属 MAJOR 语义 |
 | `statistics` | 均值 / 方差 / 相关 / 分位 / 回归 / 排名 / z 分数 | 指标计算 | ✅ 已落地；**只收纯数学**——年化窗口与收益率口径留 core（SCOPE §5 #2） |
 | `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码） |
 | `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式 | 各服务 HTTP 面 | ✅ 已落地（同上） |
