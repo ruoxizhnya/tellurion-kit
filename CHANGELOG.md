@@ -8,9 +8,19 @@
 
 ## [Unreleased]
 
-尚未发版（本仓零符号、零 tag）。首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打；在此之前使用方只能 pin `main`，**无兼容承诺**。
+尚未发版（**零 tag**；13 包已随 QT-05-B 落码，可 import 但无兼容承诺）。首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打；在此之前使用方只能 pin `main`。
+
+### 变更（MINOR 级：新增导出面 —— 13 包落码）
+
+- **QT-05-B**（2026-10-22）：S1 工具层落地。13 个包全部有实现，`go build ./...` / `go vet ./...` / `go test ./...` / `go run ./tools/check_scope` / `go run ./tools/check_release_matrix` 全绿（真退出码 0），单独 checkout 即可自证（R1/R2）。
+  - **新增导出面（按包）**：`logging`（logger + 脱敏）· `errors`（`AppError` + 9 个 `ErrCode*` + 包装）· `id`（`JobID` / `SubscriptionID`）· `decimal`（定点运算）· `statistics`（纯数学：均值/方差/相关/分位/回归/排名/z 分数）· `httpclient`（超时 + 重试 + JSON 解码）· `httpserver`（`AppError` → status 映射、CORS、gin 模式）· `auth`（token 签发/解析/刷新、bcrypt、claims、中间件）· `authz`（route key → `Rule` + 执法中间件，未登记变更端点 fail-closed）· `observability`（私有 registry + 两个通用族 + `RegisterCollectors` + `/metrics` handler + request-id 贯穿）· `clock`（`Clock` / `VirtualClock` / `LiveClock`，`ModeDeterministic` / `ModeLive`）· `sandbox/staticcheck` + `sandbox/runner` · **`db`（新建）**：`BuildDSN` + 三个 DSN 哨兵错误、`Connect` / `ConnectRedis`、`Migrate(ctx, Execer, statements)`。
+  - **与 core 同名包的形状差异**（切依赖时会咬人的地方，逐条在 `docs/SCOPE.md` §5 有裁决与证据）：`id` 不带 `OrderID`；`statistics` 不带 `LogReturns` / `AnnualizeVolatility`；`auth` **不带任何 SQL 与 pgxpool**（身份回读经 `IdentityLoader` 端口，`PublicPaths` 由调用方传入）；`authz` 的 `Policy` 是机制而非 core 的路由表；`observability` 不带 `BacktestDuration` / `LLMTokens` / `NTCall*`（使用方自建 collector 挂进来）；`clock` 的 `ModeBacktest` 改名 `ModeDeterministic`（**iota 顺序不变**，数值语义不动）；`sandbox/wasm` **不在本仓**（WASM 策略宿主留 core）。
+  - **`db` 零表结构**（K 裁决）：不含一条 DDL、不含迁移记录表；DDL 文本的唯一真相仍在 core `pkg/storage/postgres.go`。
+  - **新登记的第三方依赖**：`golang.org/x/sys v0.46.0` 由间接转直接（`sandbox/runner` 的 Windows Job Object）；`github.com/redis/go-redis/v9 v9.7.3` 已登记进 `AGENTS.md` §4。版本与 core 当前 `go.mod` 对齐，无大版本分叉。
+  - **不在本次范围**：没有 tag（S2 = QT-07）；没有 `replace`；没有 `go.work`；core / agent 改 `require` 本仓属 QT-05 主单 ③-③（core 侧）；`auth` 的审计中间件与 `users` / `audit_logs` SQL 留 core。
+  - **顺带登记两条既有缺陷（照搬自 core，本次刻意不改）**：`decimal.Div` 的舍入口径与源码注释不符（注释写 banker's rounding，实现是恰好一半向零截断）→ **KT-03**；`httpclient` 带 body 的请求在第二次及以后的尝试发出**空 body**，且 4xx（429 除外）按成功返回 → **KT-04**（两条都已实测取证）。改口径属 MAJOR 语义变更，不在「不改任何业务逻辑」的 QT-05-B 里顺手做。
 
 ### 变更（PATCH 级：文档与仓内自查工具，不改导出面）
 
-- **KT-02**（2026-10-22）：README 补「版本规则表 + 兼容矩阵 + 发版流程 + 拉取前提（`GOPRIVATE`）」；新建本 `CHANGELOG.md`；新建护栏 `tools/check_release_matrix`（矩阵 ↔ CHANGELOG ↔ tag 三件套不一致即红）并接进 CI。导出面零变化 —— 本仓今天没有符号。
+- **KT-02**（2026-10-22）：README 补「版本规则表 + 兼容矩阵 + 发版流程 + 拉取前提（`GOPRIVATE`）」；新建本 `CHANGELOG.md`；新建护栏 `tools/check_release_matrix`（矩阵 ↔ CHANGELOG ↔ tag 三件套不一致即红）并接进 CI。导出面零变化 —— 当时本仓没有符号（同日 QT-05-B 落码后已有 13 包，见上节）。
 - **KT-01**（2026-10-22）：新建 `docs/SCOPE.md`（13 包逐包准入/禁入 + 业务词表 + 依赖方向 + 九条实测偏差登记）与 `tools/check_scope`（业务词 / 越界 import / 未登记包即红），接进 CI 步骤「包边界核对」。导出面零变化。

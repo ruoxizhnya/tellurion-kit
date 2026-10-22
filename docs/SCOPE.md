@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-10-22
-verified-by: KT-01 落地（13 包逐包清单 + tools/check_scope 进 CI；准入判据出处逐条回源码核对）
+verified-by: QT-05-B 落地（§5 九条偏差逐条裁决并核对导出面；13 包全部有实现，check_scope 绿）
 ---
 
 # SCOPE — kit 的逐包准入 / 禁入清单
@@ -93,19 +93,21 @@ contracts（允许：只用 decimal / errors）← core / agent / 各服务（�
 
 ## 5. 实测偏差登记（回源码核对，不是纸面作业）
 
-KT-01 的清单是**目标边界**；下表是 core 今天的形状与之不符之处。逐条给 QT-05-B 当输入——**不解决这些就照搬，本仓 CI 第一天就红**。
+KT-01 的清单是**目标边界**；下表是 core 今天的形状与之不符之处。九条在 QT-05-B 落码时逐条做了裁决，
+最后一列记的是**裁决结果与落地形状**（原来的「对 QT-05-B 的后果」已兑现，保留偏差与证据两列作为历史依据 ——
+它们说明「为什么本仓这个包与 core 同名包形状不同」，这是 core 切依赖时最容易踩的地方）。
 
-| # | 偏差 | 实测证据 | 对 QT-05-B 的后果 |
+| # | 偏差 | 实测证据 | 裁决与落地（QT-05-B，2026-10-22） |
 |---|---|---|---|
-| 1 | `pkg/id` 的文件名与导出符号就是交易域 | `pkg/id/order.go`：`OrderID` / `JobID` / `SubscriptionID` | `OrderID` 命中词表 → 要么把订单 ID 留给 contracts 的 domain 值对象（更符合「跨边界类型住 contracts」），要么本包只搬 `JobID`/`SubscriptionID`。**不要靠改名糊过去** |
-| 2 | `pkg/statistics` 有量化口径函数 | `LogReturns`、`AnnualizeVolatility`（`pkg/statistics/basic.go` 一族） | 这两个不是纯数学：年化窗口与收益率定义是口径。留在 core / analytics，或把口径参数外提成「periods」这种中性入参后再搬 |
-| 3 | `pkg/auth` 带表结构与 SQL | `pkg/auth/auth.go:169,204,237,311,320,360,372,389,494,510` 打 `users` / `audit_logs`；`pgxpool` 是构造入参 | 与 `db` 的「零表结构」和 AGENTS §3「任何表结构禁止」正面冲突。搬法只有两种：SQL 留 core（auth 只留 token 机制），或 auth 整体暂不进本仓。**这是裁决，不是本单能定的** |
-| 4 | `pkg/authz` 的 `Policy` 是按 core 路由清单写的 | `pkg/authz/policy.go` 注释里的「策略 CRUD / 回测 / 下单 / 选股 / 风控」条目 | 注释不参与机械核对（§2 覆盖面限制），但**形状本身是 core 的资产表**。搬之前要把「条目 = 数据」这件事拆开，否则 kit 替 core 持有路由真相 |
-| 5 | `pkg/observability` 里已经注册了业务指标 | `metrics.go:41` `BacktestDuration`（`backtest_duration_seconds`）、`:132` `ObserveBacktest(strategyName, universe string, ...)`、`LLMTokens`、`NTCallCount/Duration` | 命中 `backtest` / `strategy`。可搬的是 registry + request-id + middleware；指标族应由使用方在自己仓注册。搬的时候这两族留在 core |
-| 6 | `pkg/errors` 有 `ErrCodeDataQuality` | `pkg/errors/errors.go` 的 9 个 `ErrCode*` 之一 | 「数据质量」是数据域的分类。词表不拦（它不含 §2 任何词），但判据 1 的语义上属边缘——留给 QT-05-B 决定：改名 `ErrCodeInvalid` 还是留在 core 的错误族里 |
-| 7 | `pkg/clock` 的模式名与错误文案带着回测语义 | `interfaces.go`：`Mode`、`ModeBacktest`、`ErrTimeRewind`（"…破坏回测确定性"） | `ModeBacktest` 命中词表 → 红。时钟模式的中性写法是 `ModeDeterministic` / `ModeWallClock`；错误**文案**不被扫（§2），但它是同一族问题 |
-| 8 | `db` 的「迁移执行」今天没有可搬的 runner | core `migration_manager.go` 已于 2026-09-18 删除（零调用方，见 core `migrations/README.md`）；唯一的迁移路径是 `pkg/storage/postgres.go` 的 `migrate()` + `migrationStatements()`（`:150`，约 30 条内联 DDL）；`NewPostgresStore`（`:33`）调 `store.migrate()`，**不能搬** | `kit/db` 落地形态只能是「接收语句序列并执行的机制 + 连接 + DSN」；**DDL 文本一条都不进本仓**。`ARCHITECTURE.md` §3 里「迁移执行」四个字指的是机制，不是内容 |
-| 9 | 三处内部 import 不是障碍 | `httpclient → logging`、`httpserver → errors`、`authz → auth`；测试侧 `pkg/auth/{bootstrap,middleware}_test.go → pkg/testenv`、`pkg/clock/*_test.go` 自 import | 生产侧三处两包同仓后即内部边 ✅；测试侧 `testenv` 留 core，搬 auth 时要改掉测试的构造方式 |
+| 1 | `pkg/id` 的文件名与导出符号就是交易域 | `pkg/id/order.go`：`OrderID` / `JobID` / `SubscriptionID` | **已裁决（QT-05-B）**：本仓 `id` 只导出 `JobID` / `SubscriptionID`；`OrderID` 留 core（后续随 contracts 的 domain 值对象走）。不靠改名糊。⚠️ UUIDv7 生成器（`newV7`）**未导出**，所以 §3 那行「通用 UUIDv7」今天只是内部机制——要对外提供得按 MINOR 加一个导出函数（已在 `api-schema.md` §5 登记为"今天没有"）。 |
+| 2 | `pkg/statistics` 有量化口径函数 | `LogReturns`、`AnnualizeVolatility`（`pkg/statistics/basic.go` 一族） | **已裁决（QT-05-B）**：本仓 `statistics` 只收纯数学（均值/方差/相关/分位/回归/排名/z 分数）；`LogReturns` / `AnnualizeVolatility` 留 core。 |
+| 3 | `pkg/auth` 带表结构与 SQL | `pkg/auth/auth.go:169,204,237,311,320,360,372,389,494,510` 打 `users` / `audit_logs`；`pgxpool` 是构造入参 | **已裁决（QT-05-B）**：SQL 留 core。本仓 `auth` 只收 token 签发/解析/刷新、bcrypt、claims、中间件；不带 pgxpool、不命名任何表。角色是不透明字符串（角色词表与 `CanTrade` 语义留 core）；`Config.PublicPaths` 由调用方传入；刷新经 `IdentityLoader` 端口回读身份。 |
+| 4 | `pkg/authz` 的 `Policy` 是按 core 路由清单写的 | `pkg/authz/policy.go` 注释里的「策略 CRUD / 回测 / 下单 / 选股 / 风控」条目 | **已裁决（QT-05-B）**：本仓 `authz` 只收机制——`Policy` 是 route key → `Rule`（Public / AnyAuthenticated / Roles 三档，`NewPolicy` 校验互斥），角色匹配是 any-of；具体路由→角色的表由各服务维护。未登记路由 fail-closed。 |
+| 5 | `pkg/observability` 里已经注册了业务指标 | `metrics.go:41` `BacktestDuration`（`backtest_duration_seconds`）、`:132` `ObserveBacktest(strategyName, universe string, ...)`、`LLMTokens`、`NTCallCount/Duration` | **已裁决（QT-05-B）**：本仓 `observability` 只收通用 registry、request-id 中间件/transport、`/metrics` handler；`BacktestDuration` / `LLMTokens` / `NTCall*` 留 core，由使用方注册。 |
+| 6 | `pkg/errors` 有 `ErrCodeDataQuality` | `pkg/errors/errors.go` 的 9 个 `ErrCode*` 之一 | **已裁决（QT-05-B）**：保留 `ErrCodeDataQuality`。它是**分类码**而不是业务规则（判据 1 管的是业务概念）；data-service 会用同一个分类，改名反而制造第二个词。 |
+| 7 | `pkg/clock` 的模式名与错误文案带着回测语义 | `interfaces.go`：`Mode`、`ModeBacktest`、`ErrTimeRewind`（"…破坏回测确定性"） | **已裁决（QT-05-B）**：`ModeBacktest` → **`ModeDeterministic`**；`ModeLive` 原名保留（它指的是墙钟，不在词表内）。**iota 顺序照搬不变**（`ModeDeterministic=0`、`ModeLive=1`，`clock.go:22` 注明是冻结契约），所以 core 切到本仓时只有名字要改、数值语义不动。错误文案与注释同步中性化（实测 `clock/clock.go` 里「回测」「实盘」「backtest」零命中）。 |
+| 8 | `db` 的「迁移执行」今天没有可搬的 runner | core `migration_manager.go` 已于 2026-09-18 删除（零调用方，见 core `migrations/README.md`）；唯一的迁移路径是 `pkg/storage/postgres.go` 的 `migrate()` + `migrationStatements()`（`:150`，约 30 条内联 DDL）；`NewPostgresStore`（`:33`）调 `store.migrate()`，**不能搬** | **已落地（QT-05-B）**：`db` = `BuildDSN` + `Connect` / `ConnectRedis` + `Migrate(ctx, Execer, statements)`；零 DDL、零迁移记录表，空白语句跳过、遇错即停并报位次。 |
+| 9 | 三处内部 import 不是障碍 | `httpclient → logging`、`httpserver → errors`、`authz → auth`；测试侧 `pkg/auth/{bootstrap,middleware}_test.go → pkg/testenv`、`pkg/clock/*_test.go` 自 import | **已落地（QT-05-B）**：生产侧三处是同仓内部边；搬 auth 时测试改为自带 `TestMain`（gin 模式集中设置），不依赖 core 的 `testenv`。 |
 
 ## 6. 护栏
 

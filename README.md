@@ -1,6 +1,6 @@
 # tellurion-kit
 
-> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落代码（QT-05）／S2 打 tag（QT-07）——当前为占位仓，尚无实现**
+> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／S2 打 tag（QT-07）待做——今天零 tag，使用方只能 pin `main`**
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
@@ -8,13 +8,14 @@
 
 | 路径 | 内容 |
 |---|---|
+| `logging/` `errors/` `id/` `decimal/` `statistics/` `httpclient/` `httpserver/` `auth/` `authz/` `observability/` `clock/` `sandbox/{staticcheck,runner}/` `db/` | **13 个包（QT-05-B 已落地）**：逐包「收什么 / 不收什么」在 [`docs/SCOPE.md`](docs/SCOPE.md) §3，对外形状在 [`docs/api-schema.md`](docs/api-schema.md) §1 |
 | `docs/` | 本仓文档：台账 / 边界 / 决策 / 归档 —— 从这里进：`docs/README.md` |
 | `docs/SCOPE.md` | **13 包逐包准入 / 禁入清单** + 业务词表 + 依赖方向 + 实测偏差登记（KT-01） |
 | `CHANGELOG.md` | 版本账本：每个发版一节，breaking 逐条写明「旧 → 新」 |
 | `tools/check_scope/` | 包边界护栏：业务词 / 越界 import / 未登记包 → 红（`go run ./tools/check_scope`） |
 | `tools/check_release_matrix/` | 版本纪律护栏：规则表 / 兼容矩阵 ↔ CHANGELOG ↔ tag 不一致即红（`go run ./tools/check_release_matrix`） |
 | `AGENTS.md` | 本仓入口（构建、边界、禁止、依赖版本、拉取前提） |
-| `doc.go` | 占位包（让空仓 `go build ./...` 从一开始就是绿的） |
+| `doc.go` | 根包（`package kit`），只有文档注释：它让本仓可被 `go list ./...` 识别，代码一律住上面那些子包 |
 
 ## 快速开始
 
@@ -27,6 +28,16 @@ go test ./...
 ```
 
 本仓**单独 checkout 就能跑通**上面五条。需要别的仓源码才过 → 边界错了，不是加 `replace` 能解决的问题。
+
+`db` 的三条真服务腿挂在 build tag 上，默认不跑（`go test ./...` 不含它们）：
+
+```bash
+TEST_DATABASE_DSN="postgres://user:pass@localhost:5432/postgres?sslmode=disable" \
+TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
+  go test ./db/... -tags integration -count=1 -v
+```
+
+未设这两个环境变量时逐条 `t.Skip` 并说明原因（不静默假绿）；迁移那条腿在**总是回滚的事务**里建 TEMP 表，跑完零残留。
 
 ## 边界
 
@@ -43,9 +54,9 @@ go test ./...
 本仓在依赖图的**最底层**（`kit ← contracts(含 domain) ← core`，`agent → kit + contracts`），所以一次 breaking 会**同时**打到 contracts、core、agent 三方——版本号不是装饰，是使用方要不要跟着改代码的信号。
 
 <!-- rules:begin -->
-| 位 | 何时 bump | 例子（本仓今天零实现，符号名指 `docs/SCOPE.md` §3 的目标形状） |
+| 位 | 何时 bump | 例子（符号名指本仓已落地的导出面；逐包边界见 `docs/SCOPE.md` §3） |
 |---|---|---|
-| `MAJOR` | **删符号**、**改签名**、**改语义**（默认值、精度与舍入口径、错误分类都算语义） | 删 `Decimal` 的一个方法；改舍入模式的默认值；`Wrap` 的错误分类变松；**移动 / 删除 / 改名一个包** |
+| `MAJOR` | **删符号**、**改签名**、**改语义**（默认值、精度与舍入口径、错误分类都算语义） | 删 `Decimal` 的一个方法；改 `Div` 的舍入口径或 `DefaultPoolOptions` 的默认值；`errors.Wrap` 的分类变松；**移动 / 删除 / 改名一个包** |
 | `MINOR` | **新增向后兼容的能力**：新包、新类型、新导出符号、struct 新增字段 | `statistics` 新增一个分位函数；`errors` 新增一个 `ErrCode*`；`db` 新增一个 DSN 校验函数 |
 | `PATCH` | **文档 / 注释 / 无行为修正** | `SCOPE.md` 措辞订正、CHANGELOG 补条目、README 加前提说明 |
 <!-- rules:end -->
@@ -73,10 +84,10 @@ go test ./...
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
-| `main`（未发版） | 开发基线，**不做兼容承诺** | 尚无 require（QT-05 落码后接入） | 尚无 require（12 个包今天仍住 core `pkg/*`，QT-05-B 迁入本仓） | 尚无 require（同上） |
+| `main`（未发版） | 开发基线，**不做兼容承诺**；13 包已落码（QT-05-B，2026-10-22） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 尚无 require（同上） |
 <!-- matrix:end -->
 
-⚠️ 本仓今天**零符号、零 tag**：首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打。在那之前，「矩阵里有没有我的版本」这个问题对任何使用方的答案都是「没有，你在用 `main`，随时可能 breaking」。
+⚠️ 本仓今天**零 tag**（符号已随 QT-05-B 落地：13 个包都能 import，但没有任何版本承诺）：首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打。在那之前，「矩阵里有没有我的版本」这个问题对任何使用方的答案都是「没有，你在用 `main`，随时可能 breaking」。
 
 ## 发版流程
 

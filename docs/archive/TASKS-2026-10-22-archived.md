@@ -149,3 +149,102 @@ kit 的符号级真相要等 QT-05-B 落码后再议，见 §5 与 contracts `do
 
 **边界**：没引 release 工具链（goreleaser 等一个没加，`go.mod` 零变化）；没写任何符号；没碰 `docs/{db-schema,api-schema,dataflow}.md`；
 「禁删 deprecated」的机械护栏留给 QT-09 ⑤；contracts 的同名交付 CT-02 已在 `2026-10-22` 独立结案（本单没有改动 contracts 仓任何文件）。
+
+---
+
+## QT-05-B · S1 工具层落地：12 个包 + `db` 迁入本仓（QT-05 的 kit 腿）[P0] ✅ 完成（2026-10-22）
+
+> **拆分说明（2026-10-21）**：QT-05（S1 契约层与工具层落地）主单在 `tellurion-contracts:docs/TASKS.md`（同号 QT-05，六字段正文权威版，2026-10-21 自 core `tellurion:docs/TASKS.md` 迁入）；本单是其 **kit 腿**（主单 ③-② 的执行单），按仓归属拆出、判据以主单为准。两腿同期交付，**kit 先行落码**（contracts 依赖本仓 `decimal`/`errors`，主单 ② 实测）。
+
+- **① 目标**：横切工具**物理上住进本仓**（12 个包 + 新增 `db`），零业务依赖；core 与 agent 经**版本依赖**引用本仓。
+- **② 上下文**：主单 QT-05 的 ② 与形态裁决（ADR-D31：代码直接写进新仓，core/agent 用 `require <伪版本>`，全程不 `replace`；本地联调用 `go.work` 且不入库）。包清单（12 个横切包）源出 `tellurion:docs/design/qt-decoupling/target-module-topology.md` 包边界表（含依赖方向订正 banner：`kit ← contracts(含 domain) ← core`）。本仓现状：`github.com/ruoxizhnya/tellurion-kit`、`go 1.25`、public。`docs/SCOPE.md` 载体是 KT-01，不在本单。
+- **③ 要求**：主单 ③-② 原文——`tellurion-kit`：迁 12 个包 + 新增 **`db`**（仅 connection/migrate/DSN 解析，**零表结构**，K 裁决落地）；另落地主单 ④/⑤ 中直接约束本仓的判据：一次只搬一个包、每搬一次 `go build ./...` + `go vet ./...`；本仓 import `tellurion/...` 必须**编译失败**；`kit` 业务词零命中（core 专用类型 `screen`/`sector`/`supply_chain`/`macro`/`mining` 不进本仓，主单 ③-⑨）。
+- **④ 约束与非目标**：**不改任何业务逻辑**；`db` **零表结构**（K 裁决）；不搬 `fees` 的计算部分（主单 ④）；不在本单打 tag（S2 = QT-07）；不新增 `replace`。
+- **⑤ 验收**（主单 ⑤ 中本仓腿的判据）：单独 checkout 本仓 `go build ./...` + `go test ./...` 绿；在本仓 import `tellurion/...` 编译失败；`kit` 业务词零命中；core/agent 侧 `go list -m all` 的 kit 行带真实伪版本且 `git grep -E '=> *\.\./tellurion-kit'` 零命中（core 腿执行，结果对拍）；**破坏验证**：在本仓任一包塞一个业务词 import ⇒ 护栏/构建红，还原绿。
+- **⑥ 边界**：只做本仓包落地；契约类型是主单 QT-05（contracts 腿）；core/agent 依赖切换与 `check_contract_pin.py` 是主单 ③-③/④/⑤/⑦（core 侧）；tag / 版本策略 / 跨仓护栏属 QT-07 / QT-09 / QT-19；`docs/SCOPE.md` 属 KT-01。
+
+### 结案记录（2026-10-22）
+
+**交付物：13 包 / 8 个 atomic commit（一包一 commit，`go build` + `go vet` 每步当场跑）**
+
+| commit | 落了什么 | 与 core 同名包的形状差异（切依赖时会咬人的地方） |
+|---|---|---|
+| `869f4fd` | `errors`（`AppError` + 9 个 `ErrCode*` + 包装）、`decimal`（定点运算，624 行）；**顶层包布局**（不是 `pkg/...`）——`tools/check_scope` 按路径首段对 `SCOPE.md` §3 的行，布局错了护栏对不上 | 逐字照搬；`ErrCodeDataQuality` 按 SCOPE §5 #6 保留（分类码不是业务规则） |
+| `cfe0bff` | `logging`（logger + 8 个脱敏函数）、`id`、`clock` | `id` **不导出 `OrderID`**（§5 #1）；`clock` 的 `ModeBacktest` → **`ModeDeterministic`**，`ModeLive` 原名保留，**iota 顺序不动**（§5 #7） |
+| `46eb404` | `statistics`（均值/方差/相关/分位/回归/排名/z 分数） | **不带** `LogReturns` / `AnnualizeVolatility`（§5 #2：年化窗口与收益率定义是口径，不是数学） |
+| `173de8f` | `httpclient`、`httpserver`（cors / errors / ginmode） | 两处跨包 import 收成**同仓内部边**（`httpclient → logging`、`httpserver → errors`）；`gin.SetMode` 仍只允许 `httpserver/ginmode.go` 与 `TestMain`（AUD-29 护栏随包搬来，195 行） |
+| `952234e` | `observability`（私有 registry + `RegisterCollectors` + `/metrics` handler + request-id 中间件/transport）；第三方依赖钉到与 core 同版本，`go 1.25.0` | **不带** `BacktestDuration` / `ObserveBacktest` / `LLMTokens` / `NTCall*`（§5 #5：业务指标族由使用方自建 collector 挂进来） |
+| `db2ca4c` | `sandbox/staticcheck`、`sandbox/runner`（含 `rlimit_posix.go` / `rlimit_windows.go` 双腿） | **`sandbox/wasm` 不在本仓**（它 import `tellurion/pkg/backtest/contracts`，逐 bar 喂数据必须在引擎进程内，ADR-027 §2.6.1）；`golang.org/x/sys` 由间接转直接 |
+| `1e03390` | `auth`（token 签发/解析/刷新、bcrypt、claims、中间件）、`authz`（route key → `Rule` + 执法中间件） | **`auth` 不带一条 SQL、不带 `pgxpool`**（§5 #3）：身份回读经 `IdentityLoader` 端口，`PublicPaths` 由调用方传入，角色是不透明字符串（`CanTrade`/`CanAdmin` 语义留 core）；**`authz` 的 `Policy` 是机制不是 core 的路由表**（§5 #4），未登记的变更端点 fail-closed |
+| `67c3232` | **`db`（新建）**：`BuildDSN` + 三个 DSN 哨兵错误、`Connect` / `ConnectRedis` / `DefaultPoolOptions`、`Migrate(ctx, Execer, statements)` | **零 DDL、零迁移记录表**（§5 #8 / K 裁决）：只接收语句序列并执行，空白跳过、遇错即停并报第几条（1 起）。`redis/go-redis` 登记进 `AGENTS.md` §4 |
+
+文档真相源同步（本次 docs commit）：`docs/api-schema.md`（§1 十三行 ⬜→✅ 并逐行按导出面订正、§2 补分类→状态码映射表与三条 fail-closed、§3 从「不适用」改成两条真实承诺、§5 补「今天没有」七条）、
+`docs/SCOPE.md`（§5 九条偏差的最后一列由「后果」改成**裁决与落地**）、`docs/ARCHITECTURE.md`（§2 标注现状 + 三条内部边实测、§8 S1 标 ✅）、
+`README.md`（状态行、目录表加 13 包那一行、集成测试跑法、矩阵基线行、版本规则的例子换成真符号）、`CHANGELOG.md`（`[Unreleased]` 加 MINOR 节）、`doc.go`（根包只有文档）、`docs/TASKS.md`（QT-05-B 标 ✅ 留指针 + 新立 KT-03/04/05）。
+
+**⑤ 验收逐条（真退出码；文档改完后于 2026-10-22 重跑一遍取数，本次 docs commit 携带的就是这份结果）**
+
+1. **单独 checkout 本仓 `go build ./...` + `go test ./...` 绿**：
+   `gofmt -l .` 空输出 **EXIT=0**；`go build ./...` **EXIT=0**；`go vet ./...` **EXIT=0**；
+   `go test ./... -count=1` **EXIT=0** —— 15 个 `ok`，2 个 `[no test files]`（根包 `kit` 与 `errors`；后者见 KT-05）。
+   最慢的是 `httpclient` **≈14s**（两次取样 14.156s / 14.140s；退避硬编码 `time.After`，6 条重试测试真的睡；已写进 KT-04 ②）。
+2. **在本仓 import `tellurion/...` 编译失败**：`go list tellurion/pkg/storage` → **EXIT=1**，`package tellurion/pkg/storage is not in std`；
+   `go list -m all | grep -i tellurion` → 只有 `github.com/ruoxizhnya/tellurion-kit` 一行（**没有任何仓外 `replace`**）；
+   `git grep -nE '"tellurion/|tellurion-contracts|tellurion-agent' -- '*.go'` → 3 处命中，全在 `tools/check_scope/main_test.go`，
+   是护栏自己的**红向夹具字符串**（不是 import 语句）。
+3. **`kit` 业务词零命中**：`go run ./tools/check_scope` → **EXIT=0**，输出
+   「包边界核对：**15 个库包已扫 / 2 个 main 包跳过**｜SCOPE.md 登记 13 包 ✅ 业务词零命中、无越界 import、十三包清单齐且覆盖现有包」。
+   （`screen` / `sector` / `supply_chain` / `macro` / `mining` 一个都没进本仓。）
+4. **版本纪律三件套仍一致**：`go run ./tools/check_release_matrix` → **EXIT=0**，
+   「规则表 3 行 ｜ 矩阵序列 0 ｜ CHANGELOG 版本节 0（**条目 9**）｜ tag 0 ✅」——落码没破坏 KT-02 的账（今天仍零 tag，矩阵仍只有 `main` 基线行）。
+5. **真服务集成腿（`//go:build integration`，默认不跑）**：`TEST_DATABASE_DSN=postgres://…@localhost:5432/postgres?sslmode=disable` +
+   `TEST_REDIS_URL=redis://127.0.0.1:6379/0` 时三条腿全 PASS —— `TestConnect_RealPostgres`（真连 + 真 ping）、
+   `TestConnectRedis_RealRedis`、`TestMigrate_RealPostgresInRolledBackTx`（**在总是回滚的事务里建 TEMP 表 `kit_db_migrate_probe`**，跑完零残留）。
+   未设这两个变量时逐条 `t.Skip` 并说明原因，不静默假绿。
+   ⚠️ 第一次跑用的是 `…/tellurion?sslmode=disable`，报 `FATAL: database "tellurion" does not exist`（本机没有起容器，只有一个本地 PG 实例）——
+   换库名后通过。**这条如实记在这里**：本仓的集成腿今天依赖本机恰好有一个可达的 PG/Redis，CI 里没有（CI 不跑 `-tags integration`）。
+6. **`db` 的编译期钉子**：`var _ Execer = (*pgxpool.Pool)(nil)` 在 `db/connect_test.go`，保证「`Migrate` 的入参接口」与真实 pool 不会各走各的。
+
+**没做的两条腿（如实登记，不当成绿）**
+
+- **现场破坏验证没做**：⑤ 要求「在本仓任一包塞一个业务词 import ⇒ 护栏红，还原绿」。本次执行环境把**改坏文件**这一类动作拦在授权之外，
+  所以没有现场改一次源码再还原。**长期在案的等价证据**是 `tools/check_scope/main_test.go` 的红向夹具（随 `go test ./…` 每次都跑）：
+  `TestDeclaredTypeWithBusinessWordIsRed`（`OrderID`）、`TestFuncWithBusinessWordIsRed`（`ObserveBacktest`）、
+  字段名（`BarCount`）、接口方法（`EmitSignal`）、以及越界 import（`import "tellurion/pkg/storage"` 与 `tellurion-contracts/domain`）各一条，
+  外加误红防线（`Chain` / `LinkedChain` / `Factorial` 不许命中）。**差别要写清**：夹具证的是「护栏对这类形状会红」，
+  不证「今天这 13 个包被同一条命令扫过并且红了会点名到文件:行」——后者由上面第 3 条的正向输出（15 个库包已扫）覆盖，但**不是同一条腿**。
+  这条差异留给下一位：真要做现场腿，需要一次显式授权（sha256 前后对拍 + 单行改坏 + 还原）。
+- **`-race` 跑不了**：`go test -race` → `-race requires cgo; enable cgo by setting CGO_ENABLED=1`；加 `CGO_ENABLED=1` → `cgo: C compiler "gcc" not found`。
+  本机没有 gcc，不是可以顺手修的配置。**代价**：`logging.Logger` 是包级可变全局、`gin.SetMode` 是进程级全局，这两处正是竞争高发面；
+  今天的缓解是**结构性**的（gin 模式集中在 `httpserver/ginmode.go` 与各包 `TestMain`，由 AUD-29 护栏钉住；`logging.Init` 只在启动期调），
+  但**没有 `-race` 实测背书**。已写进 KT-05 ②，等有 gcc 的环境（或 CI 的 Linux runner）再补这条腿。
+
+**执行中如实登记的偏差与发现**
+
+- **`decimal.Div` 的注释与实现互相矛盾**：`:385` 写 banker's rounding，`:400` 写 round-half-away-from-zero，`:406` 的判据 `2*absRem > absB` 实际是
+  「恰好一半向零截断」。core 那份同样如此（逐字照搬）。按 ④「不改任何业务逻辑」**没有动它**，改口径属 MAJOR 语义变更 ⇒ 立 **KT-03**，
+  并在 `docs/api-schema.md` §1 的 `decimal` 行挂 ⚠️。
+- **`httpclient` 重试发空 body + 4xx 静默当成功**：**实测取证**（临时 module 在 `C:\tmp\kthc`，`replace` 指向本仓，跑真 `httptest` 服务，EXIT=0）：
+  `maxRetries=2` 的 POST，服务端第一次收到 `len=17`、**第二次收到 `len=0`**；400 响应回来是 `err=<nil>` + `StatusCode:400`。
+  根因是 `client.go:57-64` 把 body 做成一个 `*bytes.Reader` 在重试循环里复用（`http.NewRequestWithContext` 不会自动 rewind，`GetBody` 只服务重定向）。
+  按 ④ 未改 ⇒ 立 **KT-04**，现状写进 `docs/api-schema.md` §3。
+- **`errors` 零单测、`logging` 初始化路径未测**（继承自 core，不是本次引入）⇒ 立 **KT-05**（P2）。
+- **`id` 的 UUIDv7 生成器未导出**：SCOPE §3 那行写「通用 UUIDv7」，落地只有 `newV7`（包内）。已在 SCOPE §5 #1 与 `api-schema.md` §5 登记为「今天没有」，
+  不假装清单与实现一致。
+- **`observability` 没有 `/health` handler**：SCOPE §3 写的是「handler 暴露」，落地只有 `/metrics`。健康判据是「这个服务的依赖齐不齐」，属业务装配 ⇒
+  在 `api-schema.md` §5 明确写「不提供」，并改掉我先前在 §1 里顺手写的「`/health` handler」（那是**文档比实现多承诺**，比少承诺更危险）。
+- **`httpclient` 没有熔断**：§1 原写「带超时 / 重试 / **熔断**的客户端」，实现里没有 breaker ⇒ 订正为「超时 + 重试」，并在 §5 登记「今天没有，要加是 MINOR 且先要有使用方」。
+- **文档比实现多承诺的两处是我自己写出来的**（`/health`、熔断），在逐行核对导出面时被抓到并订正 ——
+  记在这里是因为它说明「⬜ 未落地」那张表转 ✅ 时**不能只翻状态列**，「提供什么」那一列同样是契约。
+- **CRLF 自查的测量方法有坑**：`grep -c $'\r' <file>` 在本机（Git Bash）对**纯 LF 文件也返回非零**（CR 作为 argv 传进去被 mangle 成空模式），
+  一度看起来像"全部文件被注入了 CRLF"。可靠做法是 `tr -cd '\r' < file | wc -c`（实测 0）与 `git ls-files --eol`（实测 `i/lf w/lf`，`.gitattributes` 的 `* text=auto eol=lf` 在生效）。
+  本次全部改动实测 CR 字节数 0。
+
+**边界（守住 ④/⑥ 的证据）**
+
+- **没打 tag**（`git tag -l 'v*'` 空；S2 = QT-07）；**没加 `replace`**（`go.mod` 里只有 `module` + `go` + require 两段，`go list -m all` 无仓外路径）；
+  **没提交 `go.work` / `go.work.sum`**（`.gitignore` 挡着，`git status` 也没有）；**没搬 `fees`**；**没改任何业务逻辑**（`decimal` / `httpclient` 两处缺陷只登记不修）。
+- **core / agent 侧一行没动**：本单 8 个 commit 全在 `tellurion-kit`。切依赖（`require` 伪版本 + `check_contract_pin.py`）是 QT-05 主单 ③-③，
+  那半的判据（`go list -m all` 的 kit 行带真实伪版本、`git grep -E '=> *\.\./tellurion-kit'` 零命中）**本仓 checkout 不到别的仓，做不了**，留给 core 腿对拍。
+- `auth` 的**审计中间件**与 `users` / `audit_logs` 的读写留 core（§5 #3 的裁决），本仓 `auth` 不认识任何表名。
+- 临时取证目录 `C:\tmp\kthc` 是本单自己的脚手架，用完删除，不在仓内。

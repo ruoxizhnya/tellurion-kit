@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-20
-verified-by: 功能边界固化（三份契约：db / api / dataflow）
+last-verified: 2026-10-22
+verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行核对，与代码不符处已订正）
 ---
 
 # API Schema — tellurion-kit
@@ -9,33 +9,68 @@ verified-by: 功能边界固化（三份契约：db / api / dataflow）
 > **契约地位**：本仓的"API"是 **Go 包级 API**（导出函数 / 类型）。消费方式是 `require` + 版本号。
 > 本文件是**本仓对外接口的唯一真相源**。代码与它不一致时，先判断谁错：契约错 → 改本文 + 立 ADR；实现错 → 改代码。
 > 跨仓消费方（core / agent / ui / 其他服务）按本文件编码，**不读本仓实现**。
+>
+> **粒度分工**：本表记的是**每包承诺什么形状**（收什么、不收什么、哪些没提供）。
+> 符号级清单不写在这里——那是代码本身 + [`SCOPE.md`](SCOPE.md) §3 的逐包准入/禁入表（`tools/check_scope` 按它核对包边界）。
+> 版本承诺（哪个符号属哪个版本、breaking 怎么记）在 `README.md` 的兼容矩阵与 `CHANGELOG.md`。
 
 ## 1. 接口面
 
 | 包 | 提供什么 | 典型用途 | 实现状态 |
 |---|---|---|---|
-| `logging` | 结构化日志、级别、字段约定 | 全仓统一日志形状 | ⬜ 未落地（仅 doc.go 占位） |
-| `errors` | 包装 / 分类 / 堆栈 | 与 contracts 的三类哨兵配合 | ⬜ 未落地（仅 doc.go 占位） |
-| `id` | 有序 ID 生成 | run_id / job_id | ⬜ 未落地（仅 doc.go 占位） |
-| `decimal` | 定点小数 | 价格与金额（禁止 float 做钱） | ⬜ 未落地（仅 doc.go 占位） |
-| `statistics` | 常用统计量 | 指标计算 | ⬜ 未落地（仅 doc.go 占位） |
-| `httpclient` | 带超时 / 重试 / 熔断的客户端 | 服务间调用 | ⬜ 未落地（仅 doc.go 占位） |
-| `httpserver` | 统一的错误响应与中间件 | 各服务 HTTP 面 | ⬜ 未落地（仅 doc.go 占位） |
-| `auth` / `authz` | 认证与鉴权原语 | API 保护 | ⬜ 未落地（仅 doc.go 占位） |
-| `observability` | 指标 / 追踪 / 健康检查 | `/metrics`、`/health` | ⬜ 未落地（仅 doc.go 占位） |
-| `clock` | 可注入时钟 | 让"纯函数"可测试 | ⬜ 未落地（仅 doc.go 占位） |
-| `sandbox` | staticcheck / runner | 策略沙箱 | ⬜ 未落地（仅 doc.go 占位） |
-| `db` | 连接 / DSN / 迁移执行（**零表结构**） | 各仓自己的 store | ⬜ 未落地（仅 doc.go 占位） |
+| `logging` | 结构化日志、级别、字段约定、**敏感字段脱敏**（`masking.go`） | 全仓统一日志形状 | ✅ 已落地（QT-05-B，2026-10-22） |
+| `errors` | 分类错误 `AppError`（9 个 `ErrCode*`）+ 包装（保留 `%w`）+ 堆栈 | 与 contracts 的三类哨兵配合 | ✅ 已落地（同上） |
+| `id` | 与域无关的 ID：`JobID` / `SubscriptionID` | job_id / 订阅 id | ✅ 已落地；**`OrderID` 不在本仓**（交易域，SCOPE §5 #1）；UUIDv7 生成器是包内机制，**未导出通用入口** |
+| `decimal` | 定点小数（scale ≤ 18、`Round(scale)`、`Div(a, b, resultScale)`） | 价格与金额（禁止 float 做钱） | ✅ 已落地；⚠️ **`Div` 的舍入口径与源码注释不一致**（注释写 banker's rounding，实现是「超过一半才进位、恰好一半向零截断」）——已立 **KT-03** 单独裁决，改口径按 README 属 MAJOR 语义变更 |
+| `statistics` | 均值 / 方差 / 相关 / 分位 / 回归 / 排名 / z 分数 | 指标计算 | ✅ 已落地；**只收纯数学**——年化窗口与收益率口径留 core（SCOPE §5 #2） |
+| `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码） |
+| `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式 | 各服务 HTTP 面 | ✅ 已落地（同上） |
+| `auth` | token 签发 / 解析 / 刷新、bcrypt、claims、gin 中间件 | API 保护（认证） | ✅ 已落地；**只收机制**——`users` / `audit_logs` 的 SQL 与角色语义留 core，身份回读经 `IdentityLoader` 端口（SCOPE §5 #3） |
+| `authz` | route key → `Rule`（Public / AnyAuthenticated / Roles）+ 执法中间件 | API 保护（鉴权） | ✅ 已落地；**路由→角色的表由各服务维护**，未登记的变更端点 fail-closed（SCOPE §5 #4） |
+| `observability` | 私有 Prometheus registry（`Metrics`）+ 两个通用族（`http_client_requests_total` / `cache_hit_ratio`）+ `RegisterCollectors` 扩展点 + `/metrics` handler + request-id 中间件与 `HTTPTransport` 贯穿 | `/metrics`、跨服务追一个请求 | ✅ 已落地；**业务指标族不在本仓**——使用方自建 collector 经 `RegisterCollectors` 挂进来（SCOPE §5 #5）；**`/health` 不在本仓**（见 §5） |
+| `clock` | 可注入时钟（`ModeDeterministic` = VirtualClock / `ModeLive` = 墙钟） | 让"纯函数"可测试 | ✅ 已落地；模式名中性化（原 core 的 `ModeBacktest` → `ModeDeterministic`，SCOPE §5 #7）；**取值顺序是冻结契约**（`ModeDeterministic=0`、`ModeLive=1`，禁重排） |
+| `sandbox` | `staticcheck`（源码静态检查）+ `runner`（进程隔离与 rlimit / Job Object） | 策略沙箱 | ✅ 已落地；**`wasm` 子包留 core**（那是 WASM host，不是工具） |
+| `db` | `BuildDSN` + `Connect` / `ConnectRedis` + `Migrate(ctx, Execer, statements)` | 各仓自己的 store | ✅ 已落地；**零 DDL、零迁移记录表**（SCOPE §5 #8） |
 
 ## 2. 错误码与 fail-closed 语义
 
 - 统一用 `errors` 包包装，保留 `%w` 链（可 `errors.Is` / `As`）。
-- 对外错误必须能映射到 HTTP 码（`httpserver` 提供映射表）；**不许把内部错误字符串直接吐给客户端**。
+  ⚠️ `AppError.Is` 比的是**分类码**而不是实例身份：`errors.Is(err, errors.New(ErrCodeNotFound, "…"))` 为真，只要两者的 `Code` 相同。
+  要按具体原因分支时用 `errors.As(err, &appErr)` 读 `appErr.Code` / `Cause`，不要指望哨兵变量的指针相等。
+- 对外错误必须能映射到 HTTP 码（`httpserver` 提供映射表）；**不许把内部错误字符串直接吐给客户端**
+  —— `httpserver.Error` / `Wrap` 在 5xx 一律换成通用文案（`genericMessage`），真实原因只进日志（里面可能有连接串 / SQL / 内部路径）。
+- 分类 → 状态码由 `httpserver.StatusForAppError` 定，判据只有一条「这件事该谁去修」：
+
+  | `errors` 分类 | HTTP | 含义 |
+  |---|---|---|
+  | `ErrCodeInvalidInput` | 400 | 请求本身不合法，调用方改请求 |
+  | `ErrCodeNotFound` | 404 | 点名的资源不存在 |
+  | `ErrCodeDataQuality` / `ErrCodeConflict` | 409 | 请求没错，但当前数据/资源状态不满足前置 |
+  | `ErrCodePermission` | 403 | 角色不够 |
+  | `ErrCodeRateLimit` | 429 | 限流 |
+  | `ErrCodeTimeout` | 504 | 上游超时 |
+  | `ErrCodeUnavailable` | 503 | 服务不可用 |
+  | 其余（含**不是** `AppError` 的错误） | 500 | 保守默认：未知即服务端问题 |
+
+  ⚠️ 一处已知不对称（`httpserver/errors.go` 内注释在案）：`codeForStatus` 没有 504 分支，
+  所以 TIMEOUT → 504 的响应体里 `code` 落到默认的 `"internal"`。修它要动 `code` 的取值集合 = 对外契约变更，须单独裁决。
 - 重试只由 `httpclient` 决定，调用方不自己写重试循环。
+- **鉴权 fail-closed**：`authz.Middleware` 遇到「变更方法（POST/PUT/PATCH/DELETE）但策略表里没有这一条」时回 **403 并点名该路由**，
+  不静默放行；读方法（GET/HEAD/OPTIONS/TRACE）不经策略表。鉴权整体关闭（`Authenticator.Enabled() == false`）时中间件 no-op —— 那是 dev/CI 的 open-access 模式，不是漏洞。
+- **DB 配置 fail-closed**：`db.BuildDSN` 对 `${...}` 占位符、空用户名、空密码**当场报错**，不把「连不上」留到第一次查询。
+- **迁移 fail-closed**：`db.Migrate` 遇错即停并报出是第几条语句（1 起），不吞错、不续跑；空白语句跳过。
 
 ## 3. 幂等性与重试
 
-不适用（工具层不定义业务幂等；幂等键属于各服务的 API 契约）。
+业务幂等不适用（幂等键属于各服务的 API 契约）。工具层只有一条与幂等相关的承诺：
+
+- `db.Migrate` **不提供**幂等保证，也**不记迁移账**（没有版本表、没有 down、没有执行记录）。
+  重复跑同一批语句的结果完全由语句自己决定 —— core 的做法是每条都写成 `CREATE TABLE IF NOT EXISTS` 这类幂等 DDL。
+  使用方若传入非幂等语句（`CREATE TABLE` 无 `IF NOT EXISTS`、`INSERT` 无冲突处理），第二次运行就会失败，这是**预期行为**而不是缺陷。
+- `httpclient` 的重试**不看方法**：传输错误、读响应体失败、5xx、429 都会重试，POST 也在内 —— 它不保证上游端点幂等，
+  有副作用的调用要不要用带重试的 `Client` 由调用方决定（`New(baseURL, timeout, 0)` 可关掉重试）。
+  ⚠️ 已登记缺陷 **KT-04**：带 body 的请求在**第二次及以后的尝试会发出空 body**（`*bytes.Reader` 被首次尝试消费后未 rewind），
+  且 4xx（429 除外）按**成功**返回、`err == nil`，调用方必须自己看 `Response.StatusCode`。
 
 ## 4. 版本与兼容
 
@@ -46,6 +81,18 @@ verified-by: 功能边界固化（三份契约：db / api / dataflow）
 ## 5. 不提供什么（边界）
 
 - 不提供业务概念（哪怕是"通用"的 Strategy 接口）
-- 不提供表结构 / 迁移 SQL
+- 不提供表结构 / 迁移 SQL（`db` 只有**执行机制**；DDL 文本的唯一真相在 core `pkg/storage/postgres.go`）
 - 不提供 DI 容器 / 应用框架（那是 core 的装配层，QT-50 后外移）
 - 不提供测试 mock 框架
+
+**QT-05-B 落地时逐条核实过的"今天没有"**（写在这里是为了让使用方不去猜，缺什么按 MINOR 加）：
+
+| 没有的东西 | 归属 / 理由 |
+|---|---|
+| `/health` handler | 各服务自己写：健康判据是「这个服务的依赖齐不齐」，属业务装配，不属工具层 |
+| 熔断（circuit breaker） | `httpclient` 只有超时 + 重试；要加是 MINOR，但**先要有使用方**（今天没有） |
+| 通用 UUIDv7 生成器 | `id` 只导出 `JobID` / `SubscriptionID`；`newV7` 是包内机制。加新 ID 族 = MINOR 加一个函数 |
+| `users` / `audit_logs` 的读写与建表 | 留 core（SCOPE §5 #3）；本仓 `auth` 经 `IdentityLoader` 端口回读身份 |
+| 具体路由 → 角色的策略表 | 各服务的资产（SCOPE §5 #4）；本仓 `authz` 只提供 `Rule` 机制与执法中间件 |
+| `sandbox/wasm`（WASM 策略宿主） | 留 core：它逐 bar 喂数据，必须在引擎进程内（ADR-027 §2.6.1） |
+| `OrderID` / `LogReturns` / `AnnualizeVolatility` / `BacktestDuration` 一族 | 分别留 core（SCOPE §5 #1 / #2 / #5）：交易域 ID 与量化口径不是工具 |

@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-10-22
-verified-by: KT-01 落地（§3 简表标注为示意，逐包真相在 SCOPE.md）
+verified-by: QT-05-B 落地（§2 十三包已由目标态变为现状；§8 S1 本仓腿标 ✅；逐包真相仍在 SCOPE.md）
 ---
 
 # 架构 — tellurion-kit
@@ -13,12 +13,20 @@ verified-by: KT-01 落地（§3 简表标注为示意，逐包真相在 SCOPE.md
 ## 2. 分层
 
 ```
-（底座，无内部依赖）
+（依赖图底座：不 import 任何仓外内部模块）
 
   logging · errors · id · decimal · statistics
   httpclient · httpserver · auth/authz · observability
   clock · sandbox(staticcheck/runner) · db(connection/migrate/DSN)
 ```
+
+十三包 QT-05-B 已全部落地（2026-10-22）。包间**只有三条**同仓内部边，实测（`grep -rn "ruoxizhnya/tellurion-kit/" --include="*.go"`，排除测试与 `tools/`）：
+
+```
+httpclient → logging      httpserver → errors      authz → auth
+```
+
+再加一条就是新耦合，要在 ADR 里留账（判据与出处见 [`SCOPE.md`](SCOPE.md) §3 的「kit 内允许依赖」列与 §4）。
 
 ## 3. 组件职责
 
@@ -67,6 +75,6 @@ contracts / core / agent / 各服务（都可以直接 require kit）
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| S1（QT-05） | 迁 12 个横切包 + 新增 `db` | ⬜ |
-| S2（QT-07） | 打 `v0.1.0` | ⬜ |
+| S1（QT-05） | 迁 12 个横切包 + 新增 `db` | ✅ 本仓腿 **QT-05-B** 完成（2026-10-22）：13 包全部有实现；contracts 腿与 core/agent 依赖切换仍在主单 QT-05 |
+| S2（QT-07） | 打 `v0.1.0` | ⬜（今天零 tag，使用方只能 pin `main`） |
 | QT-17 | agent 用 `kit/db` 自建 `ai.*` | ⬜ |
