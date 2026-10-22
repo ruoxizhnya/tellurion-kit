@@ -46,7 +46,25 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 
 | 依赖 | 版本 | 说明 |
 |---|---|---|
-| `（无内部依赖）` | — | 本仓是依赖图底层；只依赖第三方库 |
+| `（无内部依赖）` | — | 本仓是依赖图底层；不 `require` 任何内部仓 |
+
+第三方依赖（QT-05-B 迁入时登记；新增先改这张表，再改 `go.mod`）：
+
+| 依赖 | 版本 | 用途 | 引入包 |
+|---|---|---|---|
+| `github.com/rs/zerolog` | v1.33.0 | 结构化日志 | `logging` / `httpclient` / `httpserver` |
+| `github.com/google/uuid` | v1.6.0 | UUIDv7 / 通用 ID | `id` / `observability` |
+| `github.com/gin-gonic/gin` | v1.10.0 | HTTP 服务端骨架 | `httpserver` / `observability` / `auth` / `authz` |
+| `github.com/spf13/viper` | v1.18.2 | 配置读取（CORS / gin mode） | `httpserver` |
+| `github.com/golang-jwt/jwt/v5` | v5.3.1 | token 签发 / 解析 | `auth` |
+| `golang.org/x/crypto` | v0.53.0 | bcrypt | `auth` |
+| `github.com/jackc/pgx/v5` | v5.7.3 | PG 连接 / 迁移执行机制 | `db` |
+| `github.com/prometheus/client_golang` | v1.23.2 | metrics 注册表 | `observability` |
+| `golang.org/x/sys` | v0.46.0 | Windows Job Object（进程限额） | `sandbox/runner`（仅 `_windows.go`） |
+| `github.com/stretchr/testify` | v1.11.1 | **仅测试**断言 | 各包 `_test.go` |
+
+> 版本与 core 当前 `go.mod` 对齐，避免迁移期同一个库在两个仓里出现两个大版本。
+> `github.com/tetratelabs/wazero` 属 core 的 WASM host（`sandbox/wasm` 不搬），**不进本仓**。
 
 > 跨仓依赖**只认版本号**（伪版本或 tag），不认源码路径。契约变更走 `tellurion-contracts` 的发布，不走"顺手改一下"。
 
