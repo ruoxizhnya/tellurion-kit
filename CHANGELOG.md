@@ -8,7 +8,12 @@
 
 ## [Unreleased]
 
-尚未发版（**零 tag**；13 包已随 QT-05-B 落码，可 import 但无兼容承诺）。首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打；在此之前使用方只能 pin `main`。
+暂无未发版改动。
+
+## [v0.1.0] - 2026-10-23
+
+S1 落码首版（QT-05-B，本仓侧）：**13 个包**全部有实现（`logging` / `errors` / `id` / `decimal` / `statistics` / `httpclient` / `httpserver` / `auth` / `authz` / `observability` / `clock` / `sandbox/{staticcheck,runner}` / `db`）。
+0.x 阶段按 README 版本规则允许 breaking，逐条见下（两条 breaking 均已在发版前落码并取证）。
 
 ### 变更（breaking：导出面语义 —— `decimal.Div` 的舍入口径）
 

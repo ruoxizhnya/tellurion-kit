@@ -1,6 +1,6 @@
 # tellurion-kit
 
-> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／S2 打 tag（QT-07）待做——今天零 tag，使用方只能 pin `main`**
+> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／S2 已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23，tag 在 `main` 上）**
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
@@ -84,10 +84,11 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
-| `main`（未发版） | 开发基线，**不做兼容承诺**；13 包已落码（QT-05-B，2026-10-22） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 尚无 require（同上） |
+| `v0.1` | 已发版（2026-10-23，首个版本）；13 包落码（QT-05-B） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 尚无 require（同上） |
+| `main`（未发版） | 开发基线，**不做兼容承诺** | 已发版 `v0.1.0` | 已发版 `v0.1.0` | 已发版 `v0.1.0` |
 <!-- matrix:end -->
 
-⚠️ 本仓今天**零 tag**（符号已随 QT-05-B 落地：13 个包都能 import，但没有任何版本承诺）：首个版本将是 `v0.1.0`，由 `tellurion:docs/TASKS.md` QT-07 ③-S2-a 在 S2 打。在那之前，「矩阵里有没有我的版本」这个问题对任何使用方的答案都是「没有，你在用 `main`，随时可能 breaking」。
+首个版本 `v0.1.0` 已于 **2026-10-23** 打在 `main` 上并 push（`QT-07 ③-S2-a`）。发版前的 13 包落码与两条 breaking（`decimal.Div` 舍入口径、`httpclient` 4xx 返回）都记在 [`CHANGELOG.md`](CHANGELOG.md) 的 `v0.1.0` 节；使用方从 `main` 切到 `v0.1.0` 不需要改代码（内容相同）。
 
 ## 发版流程
 
