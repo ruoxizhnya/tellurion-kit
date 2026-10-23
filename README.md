@@ -84,7 +84,7 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
-| `v0.1` | 已发版（2026-10-23，首个版本）；13 包落码（QT-05-B） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 尚无 require（同上） |
+| `v0.1` | 已发版（2026-10-23，首个版本）；13 包落码（QT-05-B） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
 | `main`（未发版） | 开发基线，**不做兼容承诺** | 已发版 `v0.1.0` | 已发版 `v0.1.0` | 已发版 `v0.1.0` |
 <!-- matrix:end -->
 
