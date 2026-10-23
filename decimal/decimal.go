@@ -54,6 +54,10 @@ var One = Decimal{value: 1, scale: 0}
 // ErrOverflow is returned when an operation would exceed the int64 range.
 var ErrOverflow = errors.New("decimal: overflow")
 
+// maxScaled10 bounds a pre-multiply operand in Div's scaling loops: any
+// value inside this bound can be multiplied by 10 without leaving int64.
+const maxScaled10 = math.MaxInt64 / 10
+
 // ErrDivisionByZero is returned when a Div divisor is zero.
 var ErrDivisionByZero = errors.New("decimal: division by zero")
 
@@ -355,11 +359,13 @@ func MulRound(a, b Decimal, resultScale int) Decimal {
 // ten first, then performs integer division, so no float64 is ever
 // involved.
 //
-// Precision note: when resultScale is smaller than a's scale, the
-// dividend's excess fractional digits are dropped before the division,
-// so the rule above applies to the already truncated dividend
-// (2.5 / 1 at scale 0 answers 2, not 3). KT-06 in docs/TASKS.md tracks
-// making that path exact.
+// Precision note: when resultScale is smaller than a's scale the extra
+// division by 10^(-shift) happens on the DENOMINATOR (b.value is scaled
+// up instead), so no low-order digits of the dividend are dropped before
+// the rounding step — 2.5 / 1 at scale 0 answers 3, not 2. Any scaling
+// step that would leave the int64 range returns ErrOverflow instead of
+// being skipped: silently skipping a multiply shrinks the quotient by
+// that power of ten (a wrong magnitude, not a precision loss).
 func Div(a, b Decimal, resultScale int) (Decimal, error) {
 	if b.value == 0 {
 		return Zero, ErrDivisionByZero
@@ -378,37 +384,47 @@ func Div(a, b Decimal, resultScale int) (Decimal, error) {
 	shift := resultScale + int(b.scale) - int(a.scale)
 
 	numerator := a.value
+	denominator := b.value
 	if shift > 0 {
-		// Multiply numerator by 10^shift. Watch for overflow.
+		// Multiply numerator by 10^shift. Overflow fails closed (KT-06):
+		// the guard bounds the PRE-multiply value so the product itself
+		// stays inside int64.
 		for i := 0; i < shift; i++ {
-			if numerator > (1<<62) || numerator < -(1<<62) {
-				break
+			if numerator > maxScaled10 || numerator < -maxScaled10 {
+				return Zero, ErrOverflow
 			}
 			numerator *= 10
 		}
 	} else if shift < 0 {
-		// Divide numerator by 10^(-shift).
+		// Divide by 10^(-shift) on the denominator side instead of
+		// truncating the numerator: a.value×10^shift / b.value equals
+		// a.value / (b.value×10^(-shift)), and truncating the numerator
+		// would discard the very digits the rounding step still needs
+		// (KT-06). Overflow fails closed for the same reason.
 		for i := 0; i < -shift; i++ {
-			numerator /= 10
+			if denominator > maxScaled10 || denominator < -maxScaled10 {
+				return Zero, ErrOverflow
+			}
+			denominator *= 10
 		}
 	}
 
 	// Half away from zero: step away when |remainder| is at least half
-	// of |b|. Comparing absRem with absB-absRem (equivalent to
-	// 2*absRem >= absB) keeps the arithmetic inside int64.
-	quotient := numerator / b.value
-	remainder := numerator % b.value
+	// of |denominator|. Comparing absRem with absDen-absRem (equivalent to
+	// 2*absRem >= absDen) keeps the arithmetic inside int64.
+	quotient := numerator / denominator
+	remainder := numerator % denominator
 	if remainder != 0 {
 		absRem := remainder
 		if absRem < 0 {
 			absRem = -absRem
 		}
-		absB := b.value
-		if absB < 0 {
-			absB = -absB
+		absDen := denominator
+		if absDen < 0 {
+			absDen = -absDen
 		}
-		if absRem >= absB-absRem {
-			if (numerator < 0 && b.value > 0) || (numerator > 0 && b.value < 0) {
+		if absRem >= absDen-absRem {
+			if (numerator < 0 && denominator > 0) || (numerator > 0 && denominator < 0) {
 				quotient--
 			} else {
 				quotient++

@@ -8,7 +8,16 @@
 
 ## [Unreleased]
 
-暂无未发版改动。
+### 修复（PATCH 级：导出行为变化 —— `decimal.Div` 定标路径）
+
+- **KT-06**（2026-10-23）：`Div` 的定标路径改为精确——`shift < 0` 时把 10 的幂乘到**分母侧**（旧实现先逐位截断被除数，舍入前就丢了低位数字：`Div(New(25,1), New(1,0), 0)` `2 → 3`）；`shift > 0` 的越界从「静默 `break` 少乘 10 的幂（商小 10^k 倍，量纲错误）」改为返回 `ErrOverflow`，分母侧越界同样 fail-closed。
+  **行为变化**：`resultScale` 小于被除数 scale 的算式结果可能变化（进位到正确值）；原先静默给出错量级结果的溢出算式现在显式报错。口径（half away from zero）不变，KT-03 裁决不动。判据：`decimal/div_rounding_test.go` 的 `TestDiv_ResultScaleBelowDividendScale` / `TestDiv_OverflowFailsClosed`。
+  **core 侧处置**：同一份修复已同步 core `pkg/decimal`（core 该副本原还停在「文档写 banker's、实现 tie 向零」的更旧分叉，本次一并对齐 KT-03 口径），同号指针见 `tellurion:docs/TASKS.md` KT-06。
+
+### 修复（PATCH 级：导出行为变化 —— `logging.Init` 的 `level` 生效）
+
+- **KT-07**（2026-10-23）：删除 `Init` 里那次无条件的 `zerolog.SetGlobalLevel(zerolog.DebugLevel)`——`level` 参数从「恒被覆盖为 Debug」变为「按配置生效」（未知值仍回落 info，`parseLevel` 映射不变）。
+  **行为变化（破坏性：生产可观测面）**：此前无论配什么都打 Debug 日志；修复后按 `level` 过滤。把日志级别当 Debug 用的调用方要在配置里显式写 `debug`。签名与包级 `Logger` 形状不变。判据：`logging/logger_test.go` 的 `TestInit_LevelArgumentControlsGlobalLevel`（原 `TestInit_LevelIsAlwaysForcedToDebug` 钉的是缺陷行为，随修复改写）。
 
 ## [v0.1.0] - 2026-10-23
 

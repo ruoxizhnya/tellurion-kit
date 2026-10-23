@@ -80,13 +80,11 @@ func TestDiv_Rounding(t *testing.T) {
 }
 
 // TestDiv_ResultScaleBelowDividendScale pins what happens when the
-// requested scale is smaller than the dividend's own scale. The
-// dividend is first brought to the target scale by dropping its excess
-// fractional digits (towards zero), and only the resulting quotient is
-// rounded. This is today's behaviour, not the ideal one: 2.5 / 1 at
-// scale 0 answers 2, not 3. Making this path exact is tracked
-// separately (KT-06) so that it does not ride in on the KT-03
-// rounding-mode decision.
+// requested scale is smaller than the dividend's own scale. Since
+// KT-06 the extra division by 10^(-shift) happens on the denominator
+// side, so the dividend's low-order digits survive until the rounding
+// step: 2.5 / 1 at scale 0 answers 3 (half away from zero on the exact
+// quotient), not the pre-truncated 2.
 func TestDiv_ResultScaleBelowDividendScale(t *testing.T) {
 	t.Parallel()
 
@@ -96,10 +94,12 @@ func TestDiv_ResultScaleBelowDividendScale(t *testing.T) {
 		scale int
 		want  string
 	}{
-		{name: "2.5_div_1_at_0", a: New(25, 1), b: New(1, 0), scale: 0, want: "2"},
+		{name: "2.5_div_1_at_0", a: New(25, 1), b: New(1, 0), scale: 0, want: "3"},
 		{name: "2.5_div_4_at_0", a: New(25, 1), b: New(4, 0), scale: 0, want: "1"},
+		{name: "2.5_div_8_at_0", a: New(25, 1), b: New(8, 0), scale: 0, want: "0"},
 		{name: "0.015_div_1_at_0", a: New(15, 3), b: New(1, 0), scale: 0, want: "0"},
 		{name: "0.005_div_2_at_0", a: New(1, 2), b: New(2, 0), scale: 0, want: "0"},
+		{name: "neg_2.5_div_1_at_0", a: New(-25, 1), b: New(1, 0), scale: 0, want: "-3"},
 	}
 
 	for _, c := range cases {
@@ -110,6 +110,53 @@ func TestDiv_ResultScaleBelowDividendScale(t *testing.T) {
 			got, err := Div(c.a, c.b, c.scale)
 			require.NoError(t, err)
 			assert.Equal(t, c.want, got.ToString())
+		})
+	}
+}
+
+// TestDiv_OverflowFailsClosed pins the KT-06 overflow semantics: any
+// scaling step that would leave the int64 range returns ErrOverflow
+// instead of silently truncating the numerator (a precision error) or
+// skipping the multiply (a magnitude error — the old code's `break`
+// made the quotient smaller by that power of ten).
+func TestDiv_OverflowFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		a, b  Decimal
+		scale int
+	}{
+		// shift > 0: numerator one past math.MaxInt64/10 cannot take the
+		// final ×10 without leaving int64.
+		{name: "numerator_over_maxScaled10", a: Decimal{value: 922337203685477581, scale: 0}, b: New(1, 0), scale: 1},
+		// Same boundary from below must still succeed, not error.
+		{name: "numerator_at_maxScaled10_boundary", a: Decimal{value: 922337203685477580, scale: 0}, b: New(1, 0), scale: 1},
+		// Negative operand at the same boundary.
+		{name: "numerator_negative_overflow", a: Decimal{value: -922337203685477581, scale: 0}, b: New(1, 0), scale: 1},
+		// The old silent-`break` shape: numerator crosses 1<<62 mid-loop,
+		// the remaining multiplies were skipped and the quotient came back
+		// wrong by a power of ten with no error.
+		{name: "old_break_shape_now_errors", a: Decimal{value: 5_000_000_000, scale: 0}, b: New(1, 0), scale: 18},
+		// shift < 0: the scaling moved to the denominator, so an oversized
+		// divisor fails closed too (old code truncated the numerator here
+		// and never overflowed).
+		{name: "denominator_overflow_on_negative_shift", a: Decimal{value: 1, scale: 18}, b: Decimal{value: 922337203685477581, scale: 0}, scale: 0},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := Div(c.a, c.b, c.scale)
+			if c.name == "numerator_at_maxScaled10_boundary" {
+				require.NoError(t, err)
+				assert.Equal(t, "922337203685477580.0", got.ToString())
+				return
+			}
+			require.ErrorIs(t, err, ErrOverflow)
+			assert.Equal(t, Zero, got)
 		})
 	}
 }
