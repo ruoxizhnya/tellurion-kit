@@ -88,17 +88,31 @@ func TestNewWriter_NonConsolePassesThrough(t *testing.T) {
 
 // ---- Init ----------------------------------------------------------------
 
-// TestInit_LevelIsAlwaysForcedToDebug pins today's behaviour: the level
-// argument is parsed but then unconditionally overwritten with DebugLevel.
-// This is a known defect tracked as KT-07 — the test documents the current
-// contract, not the desired one. When KT-07 is fixed this test must change.
-func TestInit_LevelIsAlwaysForcedToDebug(t *testing.T) {
+// TestInit_LevelArgumentControlsGlobalLevel pins the KT-07 fix: the level
+// argument actually decides the zerolog global level (the old code parsed it
+// and then unconditionally overwrote it with DebugLevel — KT-05 pinned that
+// defect as TestInit_LevelIsAlwaysForcedToDebug, rewritten here per KT-07 ③).
+// Unknown values fall back to info via parseLevel's existing mapping.
+func TestInit_LevelArgumentControlsGlobalLevel(t *testing.T) {
 	restoreGlobals(t)
 
-	for _, level := range []string{"debug", "info", "warn", "error", "bogus"} {
-		t.Run("level="+level, func(t *testing.T) {
-			Init(level, "json")
-			assert.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
+	cases := []struct {
+		level string
+		want  zerolog.Level
+	}{
+		{level: "debug", want: zerolog.DebugLevel},
+		{level: "info", want: zerolog.InfoLevel},
+		{level: "warn", want: zerolog.WarnLevel},
+		{level: "error", want: zerolog.ErrorLevel},
+		{level: "bogus", want: zerolog.InfoLevel},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run("level="+c.level, func(t *testing.T) {
+			Init(c.level, "json")
+			assert.Equal(t, c.want, zerolog.GlobalLevel())
+			assert.Equal(t, c.want, parseLevel(c.level))
 		})
 	}
 }

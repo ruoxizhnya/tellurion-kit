@@ -20,11 +20,6 @@ func Init(level, format string) {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	zerolog.SetGlobalLevel(parseLevel(level))
-	// Force debug level for testing
-	// TODO(KT-07): this unconditional overwrite is a known defect — the level
-	// argument has no effect. Kept as-is here (KT-05 fixes no behaviour) and
-	// tracked separately.
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 	Logger = zerolog.New(newWriter(format, os.Stdout)).With().Timestamp().Caller().Logger()
 }

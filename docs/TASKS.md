@@ -95,7 +95,9 @@ verified-by: KT-05 结案归档（errors/logging 单测落地、Init 全局处�
 > **对使用方的直接后果**：`logging.Init` 只能在启动期调一次（它同时写包级 `Logger` 与 zerolog 全局级别），口径钉在 `docs/api-schema.md` §1；
 > `errors` 的「`Is` 按分类码相等、`Wrap` 保留 `%w` 链、`ToMap` 只出 `code` / `message` / `op`」从今天起由本仓 CI 直接咬住。导出面零变化。
 
-### KT-06 · `decimal.Div` 定标路径的静默精度/量纲损失（KT-03 取证时新发现）[P2] ⬜
+### KT-06 · `decimal.Div` 定标路径的静默精度/量纲损失（KT-03 取证时新发现）[P2] ✅ 完成（2026-10-23）
+
+> **结案**：① `shift < 0` 改走分母侧（`denominator × 10^(-shift)`，被除数低位活到舍入步）；② `shift > 0` 的 `break` 改 `ErrOverflow`，且越界守卫从「乘前 > 1<<62」收紧为「乘前 > `math.MaxInt64/10`」（旧守卫乘完仍可越 MaxInt64）；两条定标循环共用 `maxScaled10`。③ 测试：`TestDiv_ResultScaleBelowDividendScale` 订正钉缺陷的期望（2→3）+ 补 2.5/8 与负数例；新增 `TestDiv_OverflowFailsClosed` 五腿（上界/上界内/负上界/旧 break 形状/分母侧）。④ core `pkg/decimal` 已同步同一份 `Div`（其原副本停在「文档写 banker's、实现 tie 向零」的旧分叉，一并对齐 KT-03 口径）并补同款测试，指针留 `tellurion:docs/TASKS.md`。**破坏验证（真退出码）**：突变一（分母侧改回 `numerator /= 10` 预截断）→ `TestDiv_ResultScaleBelowDividendScale` 2 子例红（exit=1）；突变二（`shift > 0` 改回旧 `break`）→ `TestDiv_OverflowFailsClosed` 3 子例红（exit=1）；各还原后 `go test ./decimal/` exit=0。CHANGELOG `[Unreleased]` PATCH 节记账；`docs/api-schema.md` §1 `decimal` 行同步。
 
 - **① 目标**：`Div` 在**任意** `resultScale` 下都给出「精确商 + 一次舍入」的结果，或在无法精确时显式返回 `ErrOverflow`，不再静默给出错量级/多次截断的值。
 - **② 上下文**：KT-03 ① 取证时实测（`decimal/div_rounding_test.go` 的 `TestDiv_ResultScaleBelowDividendScale`）：
@@ -107,7 +109,9 @@ verified-by: KT-05 结案归档（errors/logging 单测落地、Init 全局处�
 - **⑤ 验收**：`go test ./decimal/... -count=1` 绿；`Div(New(25,1), New(1,0), 0)` = 3、`Div(New(25,1), New(8,0), 0)` = 0（0.3125）；**破坏验证**：把任一路径改回预截断 → 对应测试必须红。
 - **⑥ 边界**：只做 `Div` 的定标与溢出路径；舍入口径是 KT-03，`httpclient` 是 KT-04。
 
-### KT-07 · `logging.Init` 的 `level` 参数被无条件覆盖为 Debug（KT-05 补测时取证）[P2] ⬜
+### KT-07 · `logging.Init` 的 `level` 参数被无条件覆盖为 Debug（KT-05 补测时取证）[P2] ✅ 完成（2026-10-23）
+
+> **结案**：① 删除无条件 `SetGlobalLevel(zerolog.DebugLevel)` 覆盖；② `parseLevel` 映射与未知值回落 info 不动；③ `TestInit_LevelIsAlwaysForcedToDebug` 改写为 `TestInit_LevelArgumentControlsGlobalLevel`（表驱动：debug/info/warn/error/未知→info，断言 `GlobalLevel()` 且对拍 `parseLevel`）。④ CHANGELOG `[Unreleased]` PATCH 节记账（破坏性：生产可观测面——日志从恒 Debug 变按配置）；`docs/api-schema.md` §1 `logging` 行同步。**破坏验证（真退出码）**：把删掉的强制 Debug 加回 → 改写后测试 4 子例红（exit=1；debug 例本就等于 Debug 不红），还原后 `go test ./logging/` exit=0。全仓 build/vet/test + `check_scope` + `check_release_matrix` 全 0。
 
 - **① 目标**：`logging.Init(level, format)` 的 `level` 参数真正决定全局日志级别，不再被启动期硬编码的 Debug 覆盖。
 - **② 上下文**：实测（2026-10-23，`logging/logger_test.go` 的 `TestInit_LevelIsAlwaysForcedToDebug`）：`logging/logger.go` 先
