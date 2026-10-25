@@ -84,7 +84,7 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
-| `v0.1` | 已发版（`v0.1.0` 2026-10-23 首个版本；`v0.1.1` 2026-10-25 新增 `auth/httpadapter` 子包；`v0.1.2` 2026-10-25 新增 `auth.IssueServiceToken`；`v0.1.3` 2026-10-25 新增 `statistics.LogReturns` / `AnnualizeVolatility` 与 `httpserver.IsLoopbackRemoteAddr`）；13 包 + `auth/httpadapter`（QT-05-B / KT-08 / KT-09 / KT-10） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
+| `v0.1` | 已发版（`v0.1.0` 2026-10-23 首个版本；`v0.1.1` 2026-10-25 新增 `auth/httpadapter` 子包；`v0.1.2` 2026-10-25 新增 `auth.IssueServiceToken`；`v0.1.3` 2026-10-25 新增 `statistics.LogReturns` / `AnnualizeVolatility` 与 `httpserver.IsLoopbackRemoteAddr`；`v0.1.4` 2026-10-25 修 `service` token 的 subject 校验）；13 包 + `auth/httpadapter`（QT-05-B / KT-08 / KT-09 / KT-10 / KT-11） | 尚无 require（QT-05 contracts 腿落码后接入） | 已 require `v0.1.1`（QT-73 一期切 `errors` / `decimal` / `clock` / `logging` / `httpclient` 五包，2026-10-25 实测 `go.mod`） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
 | `main`（未发版） | 开发基线，**不做兼容承诺** | 已发版 `v0.1.0` | 已发版 `v0.1.0` | 已发版 `v0.1.0` |
 <!-- matrix:end -->
 
@@ -95,6 +95,8 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 `v0.1.2` 已于 **2026-10-25** 发版（`KT-09`）：只增不改——`auth.TokenService.IssueServiceToken`（服务账号 access token，无 refresh 半区）+ `ErrInvalidServiceToken`。使用方从 `v0.1.1` 升到 `v0.1.2` 不需要改代码。
 
 `v0.1.3` 已于 **2026-10-25** 发版（`KT-10`）：只增不改——`statistics.LogReturns` / `statistics.AnnualizeVolatility`（导出签名与 core 逐字一致）与 `httpserver.IsLoopbackRemoteAddr`，供 core 二期切包。`LoopbackOnly` gin 中间件仍留 core。使用方从 `v0.1.2` 升到 `v0.1.3` 不需要改代码。
+
+`v0.1.4`（`KT-11`，裁决 ⑯/§五 ⑬ 方向 3）：修「签得出、验不过」——`auth/httpadapter.Authenticate` 与 `auth.Middleware` 对 **`role=service` 的非数字 subject** 不再判 401，用户 token 的 `int64` 校验原样保留。**这一版含行为变更（对一类输入从 401 变为放行）**，使用方升 pin 不需要改代码，但升之前服务间链路是 401、之后才通。risk / data / analytics 三只 pin 由各自仓记账。
 
 ## 发版流程
 
