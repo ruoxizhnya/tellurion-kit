@@ -11,6 +11,8 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 > 每张单六字段（① 目标 ② 上下文 ③ 要求 ④ 约束与非目标 ⑤ 验收 ⑥ 边界），判据见 `tellurion:AGENTS.md` §8.5。
 > 完成即标 ✅（附日期）并移入 `docs/archive/TASKS-YYYY-MM-DD-archived.md`；本文件只留未完成项。
 
+> **第三轮裁决指针（2026-10-25）**：⑬/⑯ service token 401 = **方向 3 已裁**（按 `claims.Role == "service"` 分流，只豁免 service 角色；用户 token 的 int64 校验原样保留）。代码在工作区已改（4 文件 + 端到端用例）但**未提交、未验证、未发版**。收尾 = 有 Go 的环境跑 `gofmt/build/vet/test` → 提交 → `v0.1.4`（README 兼容矩阵 + CHANGELOG + tag 三件套）→ risk/data/analytics 升 pin。正文见 `tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §五。
+
 ---
 
 ## 一、本仓任务
