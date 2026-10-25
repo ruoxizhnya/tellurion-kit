@@ -137,6 +137,24 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 > 各服务的「端点 × 角色」策略表仍留各自仓（`Policy` 是机制）。`Guard` 必须逐路由挂载（`r.Pattern` 取 route key），
 > 漏挂的端点不受保护——服务侧守卫测试应用 `Policy.Entries()` 与路由表双向对拍；未声明的变更路由运行时 403 是 backstop，不是替代测试。
 
+### KT-09 · `IssueServiceToken`：服务账号 token 签发（裁-17）[P1] ⬜
+
+- **① 目标**：给运维一个签发 **`service` 角色长期 access token** 的入口，不经过用户登录/刷新链路。
+- **② 上下文**：现有 `TokenService.IssueTokens(*User)` 要求 DB 用户（ID/Username），TTL 取 `access_token_ttl`（默认 15m），服务间无法使用。core 侧 `裁-17` 定稿要求 `role=service`、`sub=service:<repo>`、TTL 30d；凭证只经 env 注入，不落库、不进镜像。
+- **③ 要求**：① 新增 `IssueServiceToken(subject, role string, ttl time.Duration) (string, error)`（`*TokenService` 方法或包级函数，实现取最小侵入）；② 只签 access token（`kind=access`），**不产生 refresh token**；③ 拒绝空 `subject` / 空 `role` / `ttl<=0`；④ 角色按调用方传入字符串写入 claims，不在 kit 新增枚举；⑤ 文档写明轮换与分发责任在使用方（core QT-71）。
+- **④ 约束与非目标**：不改 `IssueTokens` 现有语义；不做吊销列表 / 服务注册表；不把 token 落盘。
+- **⑤ 验收**：签出的 token 经 `Parse` 得到 `kind=access` + 传入 role + 传入 subject；TTL 到期后 `Parse` 报过期；空参数报错；`go test ./auth/...` 绿；打 `v0.1.2`。
+- **⑥ 边界**：只做签发；分发、部署清单与服务侧角色登记属 core QT-71。
+
+### KT-10 · 二期切包前置：`statistics` / `httpserver` 的缺口补齐（裁-18）[P2] ⬜
+
+- **① 目标**：让 core 二期能切 `statistics` 与 `httpserver`，先把 kit 缺的函数补齐。
+- **② 上下文**：core `statistics` 有 `LogReturns` / `AnnualizeVolatility`，kit 无；core `httpserver` 有 `LoopbackOnly` / `IsLoopbackRemoteAddr`，kit 无。两组是 core 二期切换的唯一硬缺口（导出面已实测；core 侧点数分别 20 / 34）。
+- **③ 要求**：① 搬 `LogReturns` / `AnnualizeVolatility` 连同单测（纯函数、无业务配置）；② 评估 `LoopbackOnly`（gin 中间件）与 `IsLoopbackRemoteAddr`：若 kit 的依赖白名单不允许 gin，则只搬 `IsLoopbackRemoteAddr`（`net` 无关），core 保留 gin 包装并在二期台账写明；③ 导出签名与 core 逐字一致；④ 单独打 tag（`v0.1.3` 或二期同批），不与 KT-09 混发。
+- **④ 约束与非目标**：不搬 core `metrics.go` 的业务指标；不改 `LoopbackOnly` 不信 XFF 的原则；不改一期五包。
+- **⑤ 验收**：kit 版与 core 版同函数在表驱动 + 随机向量上输出逐位一致；core 二期删本地实现后测试绿；`go run ./tools/check_scope` 仍退出 0（无业务词）。
+- **⑥ 边界**：只补缺口；core 侧实际切换归 core 二期单，本仓不改 core。
+
 ---
 
 ## 施工序（候选单，开工前必须展开成六字段）
@@ -151,6 +169,8 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 | S1.5 | 裁决并修掉两条既有缺陷（`decimal` 舍入口径 / `httpclient` 重试语义）——**排在打 tag 前**，否则 `v0.1.0` 之后改就是 breaking | `KT-03` `KT-04` | QT-05-B 完成 |
 | S2 | 打 `v0.1.0`；下游换 tag | `QT-07` | S1 全绿 + S1.5 有裁决（改或不改都要留账） |
 | S2.5 | ✅ `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15）（2026-10-25 完成，正文见归档 KT-08） | `KT-08` | risk / analytics / data 三腿开工前 |
+| S2.6 | `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17） | `KT-09` | core QT-71 开工前 |
+| S3（二期） | 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（gin 依赖另评），打 `v0.1.3`（裁-18） | `KT-10` | core 二期切包前；不与一期混发 |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 
