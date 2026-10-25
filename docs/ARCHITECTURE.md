@@ -81,4 +81,5 @@ contracts / core / agent / 各服务（都可以直接 require kit）
 | S1（QT-05） | 迁 12 个横切包 + 新增 `db` | ✅ 本仓腿 **QT-05-B** 完成（2026-10-22）：13 包全部有实现；contracts 腿与 core/agent 依赖切换仍在主单 QT-05 |
 | S2（QT-07） | 打 `v0.1.0` | ✅ 已发版（2026-10-23） |
 | S2.5（KT-08） | `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1` | ✅ 本仓完成（2026-10-25） |
+| S2.6（KT-09） | `auth.IssueServiceToken` 服务账号 access token，打 `v0.1.2` | ✅ 本仓完成（2026-10-25） |
 | QT-17 | agent 用 `kit/db` 自建 `ai.*` | ⬜ |

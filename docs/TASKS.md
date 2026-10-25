@@ -137,7 +137,19 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 > 各服务的「端点 × 角色」策略表仍留各自仓（`Policy` 是机制）。`Guard` 必须逐路由挂载（`r.Pattern` 取 route key），
 > 漏挂的端点不受保护——服务侧守卫测试应用 `Policy.Entries()` 与路由表双向对拍；未声明的变更路由运行时 403 是 backstop，不是替代测试。
 
-### KT-09 · `IssueServiceToken`：服务账号 token 签发（裁-17）[P1] ⬜
+### KT-09 · `IssueServiceToken`：服务账号 token 签发（裁-17）[P1] ✅ 完成（2026-10-25）
+
+> **结案（2026-10-25）**：新增 `auth/service_token.go` 的 `(*TokenService).IssueServiceToken(subject, role string, ttl time.Duration) (string, error)`
+> + 哨兵 `ErrInvalidServiceToken`；只签 `kind=access`（无 refresh 半区，`ParseRefresh` 拒绝同一 token），`Username` 镜像 `subject`（让审计 actor 非空）。
+> 判据：`auth/service_token_test.go` 的 `TestIssueServiceToken_RoundTrip`（kind/role/subject/issuer/ttl/no-refresh）、
+> `TestIssueServiceToken_Expires`（1ms TTL + 20ms 等待后 `Parse` 报过期）、`TestIssueServiceToken_RejectsBadParams`（6 例：空/空白 subject、空/空白 role、0/负 ttl）、
+> `TestIssueServiceToken_DisabledService`（无 secret → `ErrTokensDisabled`）。**破坏验证（真退出码）**：把 `Kind: KindAccess` 改成 `KindRefresh` →
+> `TestIssueServiceToken_RoundTrip` 两条断言红（`kind` 不相等 + `ParseRefresh` 不再报错，exit=1）；逐字节还原（`service_token.go` SHA256 `AA4368…837C` 一致）后 exit=0。
+> `go test ./auth/... -count=1`、`go run ./tools/check_scope`、`go run ./tools/check_release_matrix` 均退出 0；已发 `v0.1.2`（annotated tag，在 `main` 上）。
+>
+> ⚠️ **跨仓前置（未落，不在本单文件域）**：`auth.Middleware` 与 `auth/httpadapter.Authenticate` 当前要求 subject 可解析为 `int64`，
+> 而裁-17 的 token 口径是 `sub=service:<repo>` ⇒ **服务 token 会被这两条守卫 401 拒绝**。core QT-71 / G4 在接入服务间调用前必须先裁决并放宽该校验
+> （或改口径用数字 subject）；本单按派发只做签发入口，未改既有守卫语义（否则命中 KT-08 的已发行为）。
 
 - **① 目标**：给运维一个签发 **`service` 角色长期 access token** 的入口，不经过用户登录/刷新链路。
 - **② 上下文**：现有 `TokenService.IssueTokens(*User)` 要求 DB 用户（ID/Username），TTL 取 `access_token_ttl`（默认 15m），服务间无法使用。core 侧 `裁-17` 定稿要求 `role=service`、`sub=service:<repo>`、TTL 30d；凭证只经 env 注入，不落库、不进镜像。
@@ -169,7 +181,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 | S1.5 | 裁决并修掉两条既有缺陷（`decimal` 舍入口径 / `httpclient` 重试语义）——**排在打 tag 前**，否则 `v0.1.0` 之后改就是 breaking | `KT-03` `KT-04` | QT-05-B 完成 |
 | S2 | 打 `v0.1.0`；下游换 tag | `QT-07` | S1 全绿 + S1.5 有裁决（改或不改都要留账） |
 | S2.5 | ✅ `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15）（2026-10-25 完成，正文见归档 KT-08） | `KT-08` | risk / analytics / data 三腿开工前 |
-| S2.6 | `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17） | `KT-09` | core QT-71 开工前 |
+| S2.6 | ✅ `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17）（2026-10-25 完成，正文见 KT-09） | `KT-09` | core QT-71 开工前 |
 | S3（二期） | 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（gin 依赖另评），打 `v0.1.3`（裁-18） | `KT-10` | core 二期切包前；不与一期混发 |
 
 ## 二、跨仓指针（不在本仓，勿双写）

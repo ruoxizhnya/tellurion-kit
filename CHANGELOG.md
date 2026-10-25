@@ -8,6 +8,18 @@
 
 ## [Unreleased]
 
+## [v0.1.2] - 2026-10-25
+
+### 新增（MINOR 级：`auth` 服务账号 access token 签发）
+
+- **KT-09**（2026-10-25）：新增 `(*TokenService).IssueServiceToken(subject, role string, ttl time.Duration) (string, error)` 与哨兵 `ErrInvalidServiceToken`。
+  - 只签 `kind=access`，**不产生 refresh token**；TTL 由调用方显式传入（不读 `Config.AccessTokenTTL`），过期后 `Parse` 报 `ErrInvalidToken`。
+  - 拒绝空 / 空白 `subject`、空 / 空白 `role`、`ttl <= 0`（`ErrInvalidServiceToken`）；服务未启用（空 secret）返回 `ErrTokensDisabled`。
+  - 角色是调用方传入的**不透明字符串**，本仓不新增角色枚举；`Username` 镜像 `subject`（让审计 actor 非空）。
+  - 轮换与分发责任在调用方（core QT-71）：凭证经 env / secret 注入，本仓不落盘、不做吊销列表与服务注册表。导出面只增不改，无 breaking。
+  - 判据：`auth/service_token_test.go`（round-trip / 过期 / 6 例非法参数 / disabled）。**破坏验证（真退出码）**：把 `kind` 写成 `refresh` → round-trip 的 `kind==access` 与「无 refresh 半区」两条断言红（exit=1）；逐字节还原后 exit=0。
+  - ⚠️ 消费者侧未变：`auth.Middleware` 与 `auth/httpadapter.Authenticate` 仍要求 subject 可解析为 `int64`，`sub=service:<repo>` 会被 401 拒绝；服务间接入前须另行裁决放宽（见 `docs/TASKS.md` KT-09 跨仓前置）。
+
 ## [v0.1.1] - 2026-10-25
 
 ### 新增（MINOR 级：`auth/httpadapter` —— net/http 适配 + 启动闸）

@@ -31,12 +31,13 @@ const BcryptCost = 12
 
 // Sentinel errors. Callers compare with errors.Is.
 var (
-	ErrInvalidToken       = errors.New("auth: invalid or expired token")
-	ErrUserDisabled       = errors.New("auth: user account is disabled")
-	ErrTokensDisabled     = errors.New("auth: cannot issue tokens: JWT secret not configured")
-	ErrUnauthenticated    = errors.New("auth: request has no authenticated user")
-	ErrMissingIdentity    = errors.New("auth: refresh requires an identity loader")
-	ErrIdentityLoadFailed = errors.New("auth: identity lookup failed")
+	ErrInvalidToken        = errors.New("auth: invalid or expired token")
+	ErrUserDisabled        = errors.New("auth: user account is disabled")
+	ErrTokensDisabled      = errors.New("auth: cannot issue tokens: JWT secret not configured")
+	ErrUnauthenticated     = errors.New("auth: request has no authenticated user")
+	ErrMissingIdentity     = errors.New("auth: refresh requires an identity loader")
+	ErrIdentityLoadFailed  = errors.New("auth: identity lookup failed")
+	ErrInvalidServiceToken = errors.New("auth: invalid service token parameters")
 )
 
 // Config is the static configuration for token issuance.
