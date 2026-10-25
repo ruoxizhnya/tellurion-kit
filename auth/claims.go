@@ -14,6 +14,18 @@ const (
 	KindRefresh = "refresh"
 )
 
+// ServiceRole is the name of the service-to-service principal (裁-17).
+//
+// It is NOT a role enum: this package deliberately does not define the role
+// space — callers pass role strings through IssueServiceToken (KT-09 ③-④).
+// It is named here for one reason only: a service token's subject is
+// caller-chosen and non-numeric ("service:risk"), so the int64 subject check
+// in the gin middleware and in auth/httpadapter must exempt it. Without that
+// exemption every legitimate service token 401s at the API boundary even
+// though its signature and role are valid (verified 2026-10-25 by minting one
+// with IssueServiceToken and feeding it through httpadapter.Authenticate).
+const ServiceRole = "service"
+
 // Claims is the JWT payload this package signs. It extends RegisteredClaims
 // with the minimum identity downstream handlers need: username, role, and the
 // token kind.

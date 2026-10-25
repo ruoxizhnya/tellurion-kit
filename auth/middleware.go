@@ -60,6 +60,19 @@ func (s *TokenService) Middleware() gin.HandlerFunc {
 			})
 			return
 		}
+		// Service tokens are not backed by a users row: IssueServiceToken
+		// writes the caller-chosen subject straight into `sub` (e.g.
+		// "service:risk"), which is not an int64. Requiring a numeric subject
+		// here would 401 every legitimate service token — the role is the
+		// authorisation, not a user id. No user id is fabricated: CtxUserID is
+		// left unset so audit consumers see "no user" rather than user 0.
+		if claims.Role == ServiceRole {
+			c.Set(CtxUsername, claims.Username)
+			c.Set(CtxRole, claims.Role)
+			c.Set(CtxClaims, claims)
+			c.Next()
+			return
+		}
 		uid, err := claims.UserIDInt64()
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
