@@ -11,7 +11,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 > 每张单六字段（① 目标 ② 上下文 ③ 要求 ④ 约束与非目标 ⑤ 验收 ⑥ 边界），判据见 `tellurion:AGENTS.md` §8.5。
 > 完成即标 ✅（附日期）并移入 `docs/archive/TASKS-YYYY-MM-DD-archived.md`；本文件只留未完成项。
 
-> **第三轮裁决指针（2026-10-25）**：⑬/⑯ service token 401 = **方向 3 已裁**（按 `claims.Role == "service"` 分流，只豁免 service 角色；用户 token 的 int64 校验原样保留）。代码在工作区已改（4 文件 + 端到端用例）但**未提交、未验证、未发版**。收尾 = 有 Go 的环境跑 `gofmt/build/vet/test` → 提交 → `v0.1.4`（README 兼容矩阵 + CHANGELOG + tag 三件套）→ risk/data/analytics 升 pin。正文见 `tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §五。
+> **第三轮裁决指针（2026-10-25）**：⑬/⑯ service token 401 = **方向 3 已裁**（按 `claims.Role == "service"` 分流，只豁免 service 角色；用户 token 的 int64 校验原样保留）。已展开成 **`KT-11`**（本文件），代码 + 文档 + 发版记账在同一条分支上；**本机无 Go ⇒ 验收走 CI**。收尾 = CI 六步全绿 → 合 `main` → 打 `v0.1.4` → risk/data/analytics 升 pin。正文见 `tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §五。
 
 ---
 
@@ -149,9 +149,10 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 > `TestIssueServiceToken_RoundTrip` 两条断言红（`kind` 不相等 + `ParseRefresh` 不再报错，exit=1）；逐字节还原（`service_token.go` SHA256 `AA4368…837C` 一致）后 exit=0。
 > `go test ./auth/... -count=1`、`go run ./tools/check_scope`、`go run ./tools/check_release_matrix` 均退出 0；已发 `v0.1.2`（annotated tag，在 `main` 上）。
 >
-> ⚠️ **跨仓前置（未落，不在本单文件域）**：`auth.Middleware` 与 `auth/httpadapter.Authenticate` 当前要求 subject 可解析为 `int64`，
-> 而裁-17 的 token 口径是 `sub=service:<repo>` ⇒ **服务 token 会被这两条守卫 401 拒绝**。core QT-71 / G4 在接入服务间调用前必须先裁决并放宽该校验
-> （或改口径用数字 subject）；本单按派发只做签发入口，未改既有守卫语义（否则命中 KT-08 的已发行为）。
+> ✅ **跨仓前置已落（2026-10-25，`KT-11` / `v0.1.4`）**：`auth.Middleware` 与 `auth/httpadapter.Authenticate` 原要求 subject 可解析为 `int64`，
+> 而裁-17 的口径是 `sub=service:<repo>` ⇒ 服务 token 会被这两条守卫 401 拒绝。裁决 ⑯/§五 ⑬ 拍定方向 3 后，
+> **仅 `role=service` 免该校验**（用户 token 一字未改），判据是把真 `IssueServiceToken` 签出的 token 送进 `Authenticate`。
+> 本单（KT-09）当时按派发只做签发入口、未改既有守卫语义，这条因此挂到 KT-11 才闭上。
 
 - **① 目标**：给运维一个签发 **`service` 角色长期 access token** 的入口，不经过用户登录/刷新链路。
 - **② 上下文**：现有 `TokenService.IssueTokens(*User)` 要求 DB 用户（ID/Username），TTL 取 `access_token_ttl`（默认 15m），服务间无法使用。core 侧 `裁-17` 定稿要求 `role=service`、`sub=service:<repo>`、TTL 30d；凭证只经 env 注入，不落库、不进镜像。
@@ -178,6 +179,34 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 - **⑤ 验收**：kit 版与 core 版同函数在表驱动 + 随机向量上输出逐位一致；core 二期删本地实现后测试绿；`go run ./tools/check_scope` 仍退出 0（无业务词）。
 - **⑥ 边界**：只补缺口；core 侧实际切换归 core 二期单，本仓不改 core。
 
+### KT-11 · `service` token 的 subject 被 `int64` 守卫拒成 401（裁决 ⑯ / §五 ⑬ 方向 3）[P1] 🔶 进行中（代码 + 文档已落，待 CI 门禁与发版）
+
+> **来由**：KT-09 结案时点名的那条跨仓前置——签发侧允许任意非空 subject（`service:risk`），
+> 而 `auth/httpadapter/httpadapter.go:147` 与 `auth/middleware.go` 要求 subject 可解析为 `int64`（`auth/claims.go` 的 `UserIDInt64()`），
+> ⇒ 按裁-17 口径签出的服务 token 到消费侧**必然 401**，整条服务间链路走不通。
+> 2026-10-25 实测新发现并登记为裁决记录 ⑯，同日拍定方向 3。
+>
+> **为什么两条既有测试都是绿的**（本单的教训）：kit 的 `service_token_test.go` 只验签发（`NotEmpty` 即过），
+> risk 的 `TestPolicy_*` 用 `IssueTokens(1, …)` 的数字 subject ⇒ **两端各自绿、中间那条缝没人测**。本单的判据就是补那条缝。
+
+- **① 目标**：`role=service` 的 access token 能被 `auth/httpadapter.Authenticate` 与 `auth.Middleware` 接受，**且用户 token 的 `int64` 校验不放松**。
+- **② 上下文**：`auth/service_token.go`（KT-09）把 subject 原样写进 `sub` 与 `Username`；`auth/claims.go` 的 `UserIDInt64()` 做 `strconv.ParseInt`；
+  core 侧同一逻辑已上线并有钉子（`tellurion:pkg/auth/middleware.go:68-81` + `middleware_test.go:164` `TestMiddleware_ServiceTokenNonNumericSubject_OK`），本单是把它移植到 kit 的两条消费守卫。
+  裁决正文：`tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §一 ⑯ + §五 ⑬。
+- **③ 要求**：① 新增导出常量 `auth.ServiceRole = "service"`，注释写明**不是角色枚举**（KT-09 ③-④ 口径不变）；
+  ② `httpadapter.authenticate()` 在 `Kind != access` 之后、`UserIDInt64()` 之前按 `claims.Role == auth.ServiceRole` 分流；
+  ③ gin 侧 `Middleware` 同样分流：设 `CtxUsername/CtxRole/CtxClaims`，**不设 `CtxUserID`**（不伪造用户身份，审计侧看到「无用户」而不是用户 0）；
+  ④ 判据必须用**真 `IssueServiceToken` 签出的 token** 喂进 `Authenticate`，并断言「非 service 角色 + 非数字 subject 仍 401」；
+  ⑤ 记账：`CHANGELOG.md` 的 `v0.1.4` 节 + README 兼容矩阵那一行 + `docs/api-schema.md` 的 `auth` / `auth/httpadapter` 两行与 §2 那条服务账号注记。
+- **④ 约束与非目标**：**不改** `IssueServiceToken` 的签名与校验；**不放宽**用户 token 的 `int64` 要求（方向 1 被否）；
+  **不**把 subject 强制成数字（方向 2 被否，与「service 主体要可读」及 core `RoleService` 口径冲突）；不建角色枚举、不做吊销；
+  不改三个消费仓的 `go.mod`（升 pin 是它们的单）。
+- **⑤ 验收**：本仓 CI 六步（`gofmt` / `build` / `vet` / `check_scope` / `check_release_matrix` / `go test ./... -count=1`，`fetch-depth: 0`）全绿；
+  新用例 `TestAuthenticate_ServiceTokenFromIssueServiceToken` 通过；破坏验证：把分流分支的 `claims.Role == auth.ServiceRole` 改成恒假 ⇒ 该用例红，还原后绿；
+  发版 = `v0.1.4` annotated tag 打在含本节账的 `main` 上并 push。
+  ⚠️ **本机无 Go 工具链**（`go` 不在 PATH）⇒ 本地一条都没跑，验收证据只能取 CI 退出码。
+- **⑥ 边界**：只做 kit 的两条守卫 + 文档与发版记账；risk / data / analytics 升 pin、orchestration/strategy 首次接 kit 都在别的仓。
+
 ---
 
 ## 施工序（候选单，开工前必须展开成六字段）
@@ -194,6 +223,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 | S2.5 | ✅ `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15）（2026-10-25 完成，正文见归档 KT-08） | `KT-08` | risk / analytics / data 三腿开工前 |
 | S2.6 | ✅ `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17）（2026-10-25 完成，正文见 KT-09） | `KT-09` | core QT-71 开工前 |
 | S3（二期） | ✅ 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（`LoopbackOnly` 留 core），打 `v0.1.3`（裁-18）（2026-10-25 完成，正文见 KT-10） | `KT-10` | core 二期切包前；不与一期混发 |
+| S2.7 | 🔶 修 `service` token 的 subject 被 `int64` 守卫拒成 401（方向 3），打 `v0.1.4` | `KT-11` | 裁决 §五 ⑬ 已定；risk / data / analytics 升 pin 前 |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 

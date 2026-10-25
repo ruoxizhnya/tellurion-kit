@@ -25,8 +25,8 @@ verified-by: KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogRe
 | `statistics` | 均值 / 方差 / 标准差 / 相关 / 分位 / 回归 / 排名 / z 分数 + **`LogReturns` / `AnnualizeVolatility`**（公式型，参数与周期数全由调用方显式传入） | 指标计算 | ✅ 已落地；**只收纯数学与公式**——参数显式、无内置年化窗口或收益约定；夏普 / 回撤等复合口径留 core（SCOPE §5 #2，KT-10 / 裁-18 改判） |
 | `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码）；**4xx 返回 `*errors.AppError`**，`err == nil` 只代表 2xx/3xx（口径见 §3） |
 | `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式、**回环来源判据 `IsLoopbackRemoteAddr`**（只看 `RemoteAddr`，不信 `X-Forwarded-For`） | 各服务 HTTP 面；insecure 模式的逐请求来源判定 | ✅ 已落地（同上）；KT-10 只迁判据，**`LoopbackOnly` gin 中间件与 403 文案仍留 core**（应用层装配口径） |
-| `auth` | token 签发 / 解析 / 刷新、**服务账号 access token 签发（`IssueServiceToken(subject, role, ttl)`）**、bcrypt、claims、gin 中间件 | API 保护（认证） | ✅ 已落地；**只收机制**——`users` / `audit_logs` 的 SQL 与角色语义留 core，身份回读经 `IdentityLoader` 端口（SCOPE §5 #3）；服务账号签发见 KT-09（2026-10-25） |
-| `auth/httpadapter` | net/http 适配（源码不 import gin；依赖闭包因父包 `auth` 的 gin 中间件仍含 gin，见 ADR 0003）：`Authenticate`（Bearer → `Parse` → 拒 `kind != access`，失败 `ErrUnauthenticated` → 401）、`Authorize`（角色 any-of，失败 `ErrForbidden` → 403）、`Guard` 中间件、`ClaimsFromContext`、`DecideStartup` 启动闸、`Policy`（route key → Public / AnyAuthenticated / Roles，**未声明变更路由 403**） | risk / analytics / data 等 net/http 服务的认证与鉴权 | ✅ 已落地（KT-08，2026-10-25）；route key 取 `http.Request.Pattern`，须按路由挂载 `Guard`；路由 → 角色的策略表仍由各服务维护 |
+| `auth` | token 签发 / 解析 / 刷新、**服务账号 access token 签发（`IssueServiceToken(subject, role, ttl)`）**、bcrypt、claims、gin 中间件 | API 保护（认证） | ✅ 已落地；**只收机制**——`users` / `audit_logs` 的 SQL 与角色语义留 core，身份回读经 `IdentityLoader` 端口（SCOPE §5 #3）；服务账号签发见 KT-09（2026-10-25）；**`role=service` 的 token 免 `int64` subject 校验**见 KT-11 / `v0.1.4`（2026-10-25）。 |
+| `auth/httpadapter` | net/http 适配（源码不 import gin；依赖闭包因父包 `auth` 的 gin 中间件仍含 gin，见 ADR 0003）：`Authenticate`（Bearer → `Parse` → 拒 `kind != access`；**`role=service` 免 `int64` subject 校验，其余角色 subject 必须可解析为 int64**，失败 `ErrUnauthenticated` → 401）、`Authorize`（角色 any-of，失败 `ErrForbidden` → 403）、`Guard` 中间件、`ClaimsFromContext`、`DecideStartup` 启动闸、`Policy`（route key → Public / AnyAuthenticated / Roles，**未声明变更路由 403**） | risk / analytics / data 等 net/http 服务的认证与鉴权 | ✅ 已落地（KT-08，2026-10-25）；route key 取 `http.Request.Pattern`，须按路由挂载 `Guard`；路由 → 角色的策略表仍由各服务维护 |
 | `authz` | route key → `Rule`（Public / AnyAuthenticated / Roles）+ 执法中间件 | API 保护（鉴权） | ✅ 已落地；**路由→角色的表由各服务维护**，未登记的变更端点 fail-closed（SCOPE §5 #4） |
 | `observability` | 私有 Prometheus registry（`Metrics`）+ 两个通用族（`http_client_requests_total` / `cache_hit_ratio`）+ `RegisterCollectors` 扩展点 + `/metrics` handler + request-id 中间件与 `HTTPTransport` 贯穿 | `/metrics`、跨服务追一个请求 | ✅ 已落地；**业务指标族不在本仓**——使用方自建 collector 经 `RegisterCollectors` 挂进来（SCOPE §5 #5）；**`/health` 不在本仓**（见 §5） |
 | `clock` | 可注入时钟（`ModeDeterministic` = VirtualClock / `ModeLive` = 墙钟） | 让"纯函数"可测试 | ✅ 已落地；模式名中性化（原 core 的 `ModeBacktest` → `ModeDeterministic`，SCOPE §5 #7）；**取值顺序是冻结契约**（`ModeDeterministic=0`、`ModeLive=1`，禁重排） |
@@ -64,8 +64,11 @@ verified-by: KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogRe
 - **服务账号 token（`auth.IssueServiceToken`）**：只签 `kind=access`，**不产生 refresh token**，因此不经 `/api/auth/refresh` 续期；
   空 subject / 空 role / `ttl <= 0` 一律 `ErrInvalidServiceToken`；角色是调用方传入的**不透明字符串**（本仓不建角色枚举）。
   轮换周期、分发（env / secret 注入）与吊销策略归调用方（core QT-71）。
-  ⚠️ 消费者侧注意：`auth.Middleware` 与 `auth/httpadapter.Authenticate` 仍要求 **subject 可解析为 int64**，
-  因此 `sub=service:<repo>` 的服务 token 会被这两条守卫以 401 拒绝；接入服务间调用前须先裁决并放宽该校验（本版未改，见 `docs/TASKS.md` KT-09 的跨仓前置）。
+  ✅ **KT-11 / `v0.1.4`（2026-10-25，裁决 ⑯/§五 ⑬ 方向 3）已解决**：`auth.Middleware` 与 `auth/httpadapter.Authenticate` 在
+  `claims.Role == auth.ServiceRole` 时**跳过** `int64` subject 校验（不伪造 user id：gin 侧不写 `CtxUserID`，net/http 侧返回零值 uid），
+  因此 `sub=service:<repo>` 的服务 token 可正常认证。**用户 token 的校验一字未改**：非 service 角色 + 非数字 subject 仍 401。
+  判据是 `auth/httpadapter/httpadapter_test.go` 的 `TestAuthenticate_ServiceTokenFromIssueServiceToken`（真 `IssueServiceToken` 签的 token 进 `Authenticate`，
+  正是 KT-09 当初缺的那条「签发侧绿、消费侧没人测」的缝）。消费方需**升 pin 到 `v0.1.4`** 才生效；未升 pin 的部署继续 401。
 - **DB 配置 fail-closed**：`db.BuildDSN` 对 `${...}` 占位符、空用户名、空密码**当场报错**，不把「连不上」留到第一次查询。
 - **迁移 fail-closed**：`db.Migrate` 遇错即停并报出是第几条语句（1 起），不吞错、不续跑；空白语句跳过。
 

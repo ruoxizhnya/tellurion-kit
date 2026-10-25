@@ -8,6 +8,28 @@
 
 ## [Unreleased]
 
+## [v0.1.4] - 2026-10-25
+
+### 修复（MINOR 级：service token 的 subject 校验分流）
+
+- **KT-11**（2026-10-25，裁决 ⑯/§五 ⑬「方向 3」）：`auth/httpadapter.Authenticate` 与 `auth.Middleware` 不再把
+  **`role=service` 的非数字 subject** 判成 401。破坏性：`sub=service:<repo>` + `role=service` 的 access token
+  旧 → 401 `malformed token subject`，新 → 认证通过；**用户 token 的 `int64` 校验一字未改**
+  （非 service 角色 + 非数字 subject 仍 401，防止伪造的 user token 搭便车）。
+  - `auth/claims.go` 新增导出常量 `ServiceRole = "service"`（注释写明**不是角色枚举**，KT-09 ③-④ 的口径不变；
+    只因服务 token 的 subject 非数字才在此命名）。
+  - `auth/httpadapter/httpadapter.go`：`authenticate()` 在 `Kind != access` 之后、`UserIDInt64()` 之前分流；
+    不伪造 user id（调用方看到的是零值 uid，不是用户 0）。
+  - `auth/middleware.go`（gin 变体）：同一条分流；设 `CtxUsername/CtxRole/CtxClaims`，**不设 `CtxUserID`**。
+  - 判据（补的正是 KT-09 那条缺口——签发侧与消费侧各自绿、中间那条缝没人测）：
+    `auth/httpadapter/httpadapter_test.go` 的 `TestAuthenticate_ServiceTokenFromIssueServiceToken`
+    用 `IssueServiceToken("service:risk", ServiceRole, …)` 签一个**真 token** 喂进 `Authenticate`，
+    并断言非 service 角色 + 非数字 subject 仍 401。
+  - 消费方（risk / data / analytics）升 pin 后才能生效；未升 pin 的部署继续 401，是设定不是缺陷。
+  - **验收**：本仓 CI（`gofmt` / `go build` / `go vet` / `check_scope` / `check_release_matrix` / `go test ./... -count=1`，
+    `fetch-depth: 0`）在本 PR 上全绿；本机无 Go 工具链，**本地一条都没跑**（如实登记，取证见
+    `tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §五 ⑬）。
+
 ## [v0.1.3] - 2026-10-25
 
 ### 新增（MINOR 级：二期切包前置 —— `statistics` / `httpserver` 补函数）
