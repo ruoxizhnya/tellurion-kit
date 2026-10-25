@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -121,6 +122,37 @@ func do(mux http.Handler, method, path, token string) *httptest.ResponseRecorder
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 	return w
+}
+
+func TestAuthenticate_ServiceTokenFromIssueServiceToken(t *testing.T) {
+	t.Parallel()
+	svc := newService(t)
+
+	// The subject is caller-chosen and non-numeric — that is the documented
+	// shape of IssueServiceToken, not an accident.
+	tok, err := svc.IssueServiceToken("service:risk", auth.ServiceRole, time.Hour)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/risk/resolve", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+
+	claims, err := Authenticate(svc, req)
+	require.NoError(t, err, "a token minted by IssueServiceToken must authenticate")
+	assert.Equal(t, auth.ServiceRole, claims.Role)
+	assert.Equal(t, "service:risk", claims.Subject)
+	assert.Equal(t, "service:risk", claims.Username,
+		"audit consumers need a non-empty actor even though there is no user row")
+
+	// The exemption is scoped to the service role: a non-numeric subject with
+	// any other role stays malformed. Otherwise a forged user token could ride
+	// the same path.
+	bad, err := svc.IssueServiceToken("not-a-user-id", "admin", time.Hour)
+	require.NoError(t, err)
+	req2 := httptest.NewRequest(http.MethodPost, "/api/risk/resolve", nil)
+	req2.Header.Set("Authorization", "Bearer "+bad)
+	_, err = Authenticate(svc, req2)
+	require.ErrorIs(t, err, ErrUnauthenticated,
+		"non-numeric subject must still be rejected for non-service roles")
 }
 
 func TestGuard(t *testing.T) {

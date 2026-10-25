@@ -136,6 +136,14 @@ func authenticate(svc *auth.TokenService, r *http.Request) (*auth.Claims, string
 	if claims.Kind != auth.KindAccess {
 		return nil, "refresh token cannot be used as access token", ErrUnauthenticated
 	}
+	// Service tokens are not backed by a users row: IssueServiceToken writes
+	// the caller-chosen subject straight into `sub` (e.g. "service:risk"),
+	// which is not an int64. Requiring a numeric subject here would 401 every
+	// legitimate service token — the role is the authorisation, not a user id.
+	// No user id is fabricated: callers see a nil/zero uid for these requests.
+	if claims.Role == auth.ServiceRole {
+		return claims, "", nil
+	}
 	if _, err := claims.UserIDInt64(); err != nil {
 		return nil, "malformed token subject", ErrUnauthenticated
 	}
