@@ -11,7 +11,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 > 每张单六字段（① 目标 ② 上下文 ③ 要求 ④ 约束与非目标 ⑤ 验收 ⑥ 边界），判据见 `tellurion:AGENTS.md` §8.5。
 > 完成即标 ✅（附日期）并移入 `docs/archive/TASKS-YYYY-MM-DD-archived.md`；本文件只留未完成项。
 
-> **第三轮裁决指针（2026-10-25）**：⑬/⑯ service token 401 = **方向 3 已裁**（按 `claims.Role == "service"` 分流，只豁免 service 角色；用户 token 的 int64 校验原样保留）。已展开成 **`KT-11`**（本文件），代码 + 文档 + 发版记账在同一条分支上；**本机无 Go ⇒ 验收走 CI**。收尾 = CI 六步全绿 → 合 `main` → 打 `v0.1.4` → risk/data/analytics 升 pin。正文见 `tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §五。
+> **第三轮裁决指针（2026-10-25）**：⑬/⑯ service token 401 = **方向 3 已裁**（按 `claims.Role == "service"` 分流，只豁免 service 角色；用户 token 的 int64 校验原样保留）。已展开成 **`KT-11`**（本文件）并 **✅ 闭合**：CI 六步全绿 → 合 `main`（`8077c36`）→ `v0.1.4` 已发版 → risk/data/analytics 三仓同日升 pin（各自 CI 绿）。**本机无 Go ⇒ 验收证据全部来自 CI**；破坏验证那腿本机跑不了，已如实登记在 KT-11 结案里。正文见 `tellurion:docs/design/qt-decoupling/cross-repo-decision-record-2026-10-25.md` §五。
 
 ---
 
@@ -179,7 +179,18 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 - **⑤ 验收**：kit 版与 core 版同函数在表驱动 + 随机向量上输出逐位一致；core 二期删本地实现后测试绿；`go run ./tools/check_scope` 仍退出 0（无业务词）。
 - **⑥ 边界**：只补缺口；core 侧实际切换归 core 二期单，本仓不改 core。
 
-### KT-11 · `service` token 的 subject 被 `int64` 守卫拒成 401（裁决 ⑯ / §五 ⑬ 方向 3）[P1] 🔶 进行中（代码 + 文档已落，待 CI 门禁与发版）
+### KT-11 · `service` token 的 subject 被 `int64` 守卫拒成 401（裁决 ⑯ / §五 ⑬ 方向 3）[P1] ✅ 完成（2026-10-25，已发 `v0.1.4`）
+
+> **结案（2026-10-25）**：
+> **代码**（`11ed852`）：`auth/claims.go` 加 `const ServiceRole = "service"`（注释写明不是角色枚举）；`auth/httpadapter/httpadapter.go` 的 `authenticate()` 在 `Kind != access` 之后、`UserIDInt64()` 之前按 `claims.Role == auth.ServiceRole` 分流；`auth/middleware.go` 同口径且**不设 `CtxUserID`**；`httpadapter_test.go` 新增 `TestAuthenticate_ServiceTokenFromIssueServiceToken`（真 `IssueServiceToken("service:risk", …)` 喂进 `Authenticate`，并断非 service + 非数字仍 401）。
+> **文档与发版记账**（`8077c36`）：本单六字段 + KT-09 那条「跨仓前置（未落）」改为「已闭合」+ 施工序 S2.7 行 + `CHANGELOG.md` 的 `[v0.1.4]` 节（**该输入类的处置记为破坏性**：原 401 现放行）+ README 兼容矩阵 `v0.1` 行（顺带订正 core 列——原写「尚无 require」，实测 core `go.mod` 已 `require v0.1.1`）+ `docs/api-schema.md` 的 `auth` / `auth/httpadapter` 两行与 §2 服务账号注。
+> **验收（全部来自 CI，本机无 Go ⇒ 本地零复跑，这是⑤ 已写明的边界）**：PR #1 rebase 合并 → `main = 8077c36`；PR run 与 main push run `40235174365` **六步全 success**，Test 步含
+> `ok github.com/ruoxizhnya/tellurion-kit/auth 0.976s`、`ok github.com/ruoxizhnya/tellurion-kit/auth/httpadapter 0.008s`（新用例就在后者）。
+> annotated tag `v0.1.4` 已 push；`https://proxy.golang.org/github.com/ruoxizhnya/tellurion-kit/@v/v0.1.4.info` 返回 `Version=v0.1.4 / Ref=refs/tags/v0.1.4 / Hash=8077c36c006bc497a65a65ad4f322f931b52e0ef`。
+> **下游已接**：risk / data / analytics 三仓同日各一笔升 pin PR（各自 CI 全步骤绿 + 合并后 main push run 绿，三条 Build 日志各有 `go: downloading …tellurion-kit v0.1.4`）。
+> **破坏验证（如实）**：**本机无法执行**（无 Go，跑不了「改成恒假 → 红」这条）。等价证据是新增用例本身：它把「签出的 token 能被 `Authenticate` 接受」这条断言钉在 CI 里，
+> 分流分支一旦被删，`auth/httpadapter` 包必然红——**但这条「红」尚未被实际观测过**，下一个在有 Go 的环境里跑本仓的门禁时应补做（做法：把 `if claims.Role == auth.ServiceRole` 改成恒假，跑 `go test ./auth/httpadapter -run ServiceToken`）。
+> **仍未落（不在本仓）**：`JWT_SECRET` 与服务 token 的配发 = core QT-71；「core 真进程 → 服务真进程 → `sub=service:<repo>`」端到端腿一条没跑过。**本单闭的是机制，不是链路。**
 
 > **来由**：KT-09 结案时点名的那条跨仓前置——签发侧允许任意非空 subject（`service:risk`），
 > 而 `auth/httpadapter/httpadapter.go:147` 与 `auth/middleware.go` 要求 subject 可解析为 `int64`（`auth/claims.go` 的 `UserIDInt64()`），
@@ -223,7 +234,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 | S2.5 | ✅ `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15）（2026-10-25 完成，正文见归档 KT-08） | `KT-08` | risk / analytics / data 三腿开工前 |
 | S2.6 | ✅ `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17）（2026-10-25 完成，正文见 KT-09） | `KT-09` | core QT-71 开工前 |
 | S3（二期） | ✅ 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（`LoopbackOnly` 留 core），打 `v0.1.3`（裁-18）（2026-10-25 完成，正文见 KT-10） | `KT-10` | core 二期切包前；不与一期混发 |
-| S2.7 | 🔶 修 `service` token 的 subject 被 `int64` 守卫拒成 401（方向 3），打 `v0.1.4` | `KT-11` | 裁决 §五 ⑬ 已定；risk / data / analytics 升 pin 前 |
+| S2.7 | ✅ 修 `service` token 的 subject 被 `int64` 守卫拒成 401（方向 3），打 `v0.1.4`（2026-10-25 完成，正文见 KT-11 结案） | `KT-11` | risk / data / analytics **已同日升 pin**（各仓 CI 绿） |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 
