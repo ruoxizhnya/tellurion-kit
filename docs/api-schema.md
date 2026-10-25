@@ -26,6 +26,7 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
 | `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码）；**4xx 返回 `*errors.AppError`**，`err == nil` 只代表 2xx/3xx（口径见 §3） |
 | `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式 | 各服务 HTTP 面 | ✅ 已落地（同上） |
 | `auth` | token 签发 / 解析 / 刷新、bcrypt、claims、gin 中间件 | API 保护（认证） | ✅ 已落地；**只收机制**——`users` / `audit_logs` 的 SQL 与角色语义留 core，身份回读经 `IdentityLoader` 端口（SCOPE §5 #3） |
+| `auth/httpadapter` | net/http 适配（源码不 import gin；依赖闭包因父包 `auth` 的 gin 中间件仍含 gin，见 ADR 0003）：`Authenticate`（Bearer → `Parse` → 拒 `kind != access`，失败 `ErrUnauthenticated` → 401）、`Authorize`（角色 any-of，失败 `ErrForbidden` → 403）、`Guard` 中间件、`ClaimsFromContext`、`DecideStartup` 启动闸、`Policy`（route key → Public / AnyAuthenticated / Roles，**未声明变更路由 403**） | risk / analytics / data 等 net/http 服务的认证与鉴权 | ✅ 已落地（KT-08，2026-10-25）；route key 取 `http.Request.Pattern`，须按路由挂载 `Guard`；路由 → 角色的策略表仍由各服务维护 |
 | `authz` | route key → `Rule`（Public / AnyAuthenticated / Roles）+ 执法中间件 | API 保护（鉴权） | ✅ 已落地；**路由→角色的表由各服务维护**，未登记的变更端点 fail-closed（SCOPE §5 #4） |
 | `observability` | 私有 Prometheus registry（`Metrics`）+ 两个通用族（`http_client_requests_total` / `cache_hit_ratio`）+ `RegisterCollectors` 扩展点 + `/metrics` handler + request-id 中间件与 `HTTPTransport` 贯穿 | `/metrics`、跨服务追一个请求 | ✅ 已落地；**业务指标族不在本仓**——使用方自建 collector 经 `RegisterCollectors` 挂进来（SCOPE §5 #5）；**`/health` 不在本仓**（见 §5） |
 | `clock` | 可注入时钟（`ModeDeterministic` = VirtualClock / `ModeLive` = 墙钟） | 让"纯函数"可测试 | ✅ 已落地；模式名中性化（原 core 的 `ModeBacktest` → `ModeDeterministic`，SCOPE §5 #7）；**取值顺序是冻结契约**（`ModeDeterministic=0`、`ModeLive=1`，禁重排） |
@@ -57,6 +58,9 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
 - 重试只由 `httpclient` 决定，调用方不自己写重试循环。
 - **鉴权 fail-closed**：`authz.Middleware` 遇到「变更方法（POST/PUT/PATCH/DELETE）但策略表里没有这一条」时回 **403 并点名该路由**，
   不静默放行；读方法（GET/HEAD/OPTIONS/TRACE）不经策略表。鉴权整体关闭（`Authenticator.Enabled() == false`）时中间件 no-op —— 那是 dev/CI 的 open-access 模式，不是漏洞。
+- **net/http 鉴权 fail-closed（`auth/httpadapter`）**：`Authenticate` / `Authorize` 的失败哨兵是 `ErrUnauthenticated`（→401）与 `ErrForbidden`（→403）。
+  `Guard` 在鉴权开启时：`Policy` 声明的 Public 路由放行；**未声明的变更方法路由一律 403 并点名 route key**；其余请求必须带有效 access token（401），
+  Roles 档再做 any-of 角色判定（403）。未声明的读方法也要求有效 token（fail-closed），Public 读端点须显式登记。鉴权关闭时 `Guard` no-op，与 gin 侧同口径。
 - **DB 配置 fail-closed**：`db.BuildDSN` 对 `${...}` 占位符、空用户名、空密码**当场报错**，不把「连不上」留到第一次查询。
 - **迁移 fail-closed**：`db.Migrate` 遇错即停并报出是第几条语句（1 起），不吞错、不续跑；空白语句跳过。
 

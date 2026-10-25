@@ -6,7 +6,7 @@
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
-**状态**：S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（2026-10-23，QT-07 ③-S2-a）
+**状态**：S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（2026-10-23，QT-07 ③-S2-a）／已发版 `v0.1.1`（2026-10-25，KT-08：新增 `auth/httpadapter` 子包）
 
 ## 2. 构建 / 测试（必须单仓可跑）
 

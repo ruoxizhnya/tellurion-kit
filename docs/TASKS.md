@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-23
-verified-by: KT-05 结案归档（errors/logging 单测落地、Init 全局处置钉死；补测取证的新缺陷拆为 KT-07）
+last-verified: 2026-10-25
+verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、破坏验证、v0.1.1 发版账）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -127,14 +127,15 @@ verified-by: KT-05 结案归档（errors/logging 单测落地、Init 全局处�
   **破坏验证**：把删掉的 `SetGlobalLevel(DebugLevel)` 加回去 → 改写后的测试必须红。全仓 `go build ./...` / `go vet ./...` / `go test ./... -count=1` / 两个 `tools/` 护栏绿。
 - **⑥ 边界**：只做 `Init` 的级别生效路径；`Logger` 全局的可注入化与 `errors` 包不在本单。
 
-### KT-08 · `auth` 的 net/http 适配 + 启动闸（裁-15 的机制腿）[P1] ⬜
+### KT-08 · `auth` 的 net/http 适配 + 启动闸（裁-15 的机制腿）[P1] ✅ 完成（2026-10-25，已归档）
 
-- **① 目标**：给 `auth` 补一层**框架无关**的 net/http 适配与启动闸，供 risk / analytics / data 三个 net/http 服务复用；各服务的「端点 × 角色」策略表仍留各自仓。
-- **② 上下文**（2026-10-25 实测）：`auth/middleware.go` 的 `Middleware()` / `RequireRole()` 是 `gin.HandlerFunc`，`authz.Policy` 也依赖 `gin.Context`；而三个服务全是 net/http（risk `127.0.0.1:8086`、analytics `127.0.0.1:8087`、data `:8081`）。目前可直接复用的只有 `TokenService.Parse`。core 的 `bootstrap.DecideAuthStartup` 语义正确但不在本仓。
-- **③ 要求**：① 新增框架无关适配（建议 `auth/httpadapter`）：从 `Authorization: Bearer` 解析 → `Parse` → 拒 `kind != access` → 角色 any-of 判定，返回可映射为 401/403 的哨兵；② `DecideStartup(secret, allowInsecure, bindHost, exposure)` 与 core **同语义**：无 secret + 回环 = 开放，无 secret + 非回环 = 拒绝启动；③ 提供 `Policy`（route key → Public / AnyAuthenticated / Roles），**未知变更路由 fail-closed 403**；④ 打 `v0.1.1` 并在 CHANGELOG 记 MINOR。
-- **④ 约束与非目标**：不搬用户表 / audit / 角色词表（角色仍是调用方的不透明字符串）；新包不 import gin；不改既有 `auth` / `authz` 导出面与其行为；不替服务决定 policy 内容。
-- **⑤ 验收**：表驱动：无 secret+回环放行、无 secret+非回环拒绝启动、无 token 401、坏 token 401、refresh 当 access 401、角色不足 403 / 足够放行；policy 未声明变更路由 403；`go build ./...` / `go vet ./...` / `go test ./... -count=1` / `go run ./tools/check_scope` 全 0；**破坏验证**：把「未知变更路由」改成放行 ⇒ 对应用例红，逐字节还原后绿。
-- **⑥ 边界**：只做机制与适配；三条服务腿各自的 policy 表与接线不在本单。
+> 六字段正文与结案记录（`auth/httpadapter` 的导出面、表驱动 9 + 14 例、破坏验证真退出码与 SHA256 还原凭据、
+> `go build` / `go vet` / `go test` / `check_scope` / `check_release_matrix` 的真退出码、`v0.1.1` 发版账）在
+> [`archive/TASKS-2026-10-25-archived.md`](archive/TASKS-2026-10-25-archived.md)。本文件按规则只留未完成项，这里只留指针。
+>
+> **对三条服务腿（risk / analytics / data）的直接后果**：鉴权机制从「各写一份」变为复用 `auth/httpadapter.Guard`；
+> 各服务的「端点 × 角色」策略表仍留各自仓（`Policy` 是机制）。`Guard` 必须逐路由挂载（`r.Pattern` 取 route key），
+> 漏挂的端点不受保护——服务侧守卫测试应用 `Policy.Entries()` 与路由表双向对拍；未声明的变更路由运行时 403 是 backstop，不是替代测试。
 
 ---
 
@@ -149,7 +150,7 @@ verified-by: KT-05 结案归档（errors/logging 单测落地、Init 全局处�
 | S1 | ✅ `kit` 内业务词零命中（`go run ./tools/check_scope` 退出码 0，实测「业务词零命中」） | `QT-05-B` | 同上 |
 | S1.5 | 裁决并修掉两条既有缺陷（`decimal` 舍入口径 / `httpclient` 重试语义）——**排在打 tag 前**，否则 `v0.1.0` 之后改就是 breaking | `KT-03` `KT-04` | QT-05-B 完成 |
 | S2 | 打 `v0.1.0`；下游换 tag | `QT-07` | S1 全绿 + S1.5 有裁决（改或不改都要留账） |
-| S2.5 | `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15） | `KT-08` | risk / analytics / data 三腿开工前 |
+| S2.5 | ✅ `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15）（2026-10-25 完成，正文见归档 KT-08） | `KT-08` | risk / analytics / data 三腿开工前 |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 

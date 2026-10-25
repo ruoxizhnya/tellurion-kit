@@ -8,6 +8,21 @@
 
 ## [Unreleased]
 
+## [v0.1.1] - 2026-10-25
+
+### 新增（MINOR 级：`auth/httpadapter` —— net/http 适配 + 启动闸）
+
+- **KT-08**（2026-10-25）：新增框架无关子包 `auth/httpadapter`（源码不 import gin；依赖闭包因父包 `auth` 的 gin 中间件仍含 gin，见 ADR 0003），供 risk / analytics / data 等 net/http 服务复用：
+  - `Authenticate`：`Authorization: Bearer` → `auth.Parse` → 拒 `kind != access` → 校验 subject；失败一律 `ErrUnauthenticated`（可映射 401）。
+  - `Authorize`：Public / AnyAuthenticated / Roles 三档，角色 **any-of**；不足时 `ErrForbidden`（可映射 403）。
+  - `Guard`：net/http 中间件；成功时把 claims 挂进 `r.Context()`（`ClaimsFromContext` 读取）。鉴权关闭时 no-op，保持 dev/CI 的 open-access 口径。
+  - `DecideStartup`：与 core `bootstrap.DecideAuthStartup` 同语义 —— 无 secret + 非回环且未声明 `loopback-published` → 拒绝启动；无 secret + 回环（或容器声明）→ 显式 open access。
+  - `Policy`：route key → Public / AnyAuthenticated / Roles；**未在策略表声明的变更方法路由 fail-closed 403 并点名 route key**（读方法未声明时仍要求有效 access token）。
+  - route key 取 `http.Request.Pattern`（net/http 从 `ServeMux` 注册模式填入），因此 `Guard` 按路由挂载：`mux.Handle(pattern, httpadapter.Guard(svc, policy)(h))`；拿不到 pattern 时 fail-closed。
+  - 判据：`auth/httpadapter/httpadapter_test.go` 的 `TestDecideStartup`（9 例：secret / 无 secret 拒绝 / 回环放行 / localhost / 非回环拒绝 / 容器豁免 / 拼错豁免）、`TestGuard`（14 例：无 token 401、坏 token 401、refresh 当 access 401、角色不足 403 / 足够放行、Public、any-authenticated、模板路由、未声明变更路由 403）、`TestGuard_UnknownMutatingRouteNamesTheRoute`。
+  - **破坏验证（真退出码）**：把「未声明变更路由」改成放行 → 上述 403 用例 2 条红（exit=1）；逐字节还原（`policy.go` SHA256 `2B3233…DCA00` 一致）后 `go test ./auth/httpadapter/` exit=0。
+  - 新增同仓内部边 `auth/httpadapter → auth`（理由见 [`docs/adr/0003-auth-net-http-适配子包.md`](docs/adr/0003-auth-net-http-适配子包.md)）；导出面只增不改，无 breaking。
+
 ### 修复（PATCH 级：导出行为变化 —— `decimal.Div` 定标路径）
 
 - **KT-06**（2026-10-23）：`Div` 的定标路径改为精确——`shift < 0` 时把 10 的幂乘到**分母侧**（旧实现先逐位截断被除数，舍入前就丢了低位数字：`Div(New(25,1), New(1,0), 0)` `2 → 3`）；`shift > 0` 的越界从「静默 `break` 少乘 10 的幂（商小 10^k 倍，量纲错误）」改为返回 `ErrOverflow`，分母侧越界同样 fail-closed。

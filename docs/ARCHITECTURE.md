@@ -20,12 +20,12 @@ verified-by: QT-05-B 落地（§2 十三包已由目标态变为现状；§8 S1 
   clock · sandbox(staticcheck/runner) · db(connection/migrate/DSN)
 ```
 
-十三包 QT-05-B 已全部落地（2026-10-22）。包间**只有四条**同仓内部边，实测（`grep -rn "ruoxizhnya/tellurion-kit/" --include="*.go"`，排除测试与 `tools/`）：
+十三包 QT-05-B 已全部落地（2026-10-22）；`auth/httpadapter` 子包由 KT-08 增加（2026-10-25）。包间**只有五条**同仓内部边，实测（`grep -rn "ruoxizhnya/tellurion-kit/" --include="*.go"`，排除测试与 `tools/`）：
 
 ```
-httpclient → logging · errors      httpserver → errors      authz → auth
+httpclient → logging · errors      httpserver → errors      authz → auth      auth/httpadapter → auth
 ```
-（`httpclient → errors` 由 KT-04 增加，理由见 [ADR 0002](adr/0002-httpclient-4xx-作为错误.md)。）
+（`httpclient → errors` 由 KT-04 增加，理由见 [ADR 0002](adr/0002-httpclient-4xx-作为错误.md)；`auth/httpadapter → auth` 由 KT-08 增加，理由见 [ADR 0003](adr/0003-auth-net-http-适配子包.md)。）
 
 再加一条就是新耦合，要在 ADR 里留账（判据与出处见 [`SCOPE.md`](SCOPE.md) §3 的「kit 内允许依赖」列与 §4）。
 
@@ -64,6 +64,8 @@ contracts / core / agent / 各服务（都可以直接 require kit）
 ## 6. 关键决策
 
 - [`adr/0001-零业务概念.md`](adr/0001-零业务概念.md)
+- [`adr/0002-httpclient-4xx-作为错误.md`](adr/0002-httpclient-4xx-作为错误.md)
+- [`adr/0003-auth-net-http-适配子包.md`](adr/0003-auth-net-http-适配子包.md)
 
 ## 7. 非目标（明确不做）
 
@@ -77,5 +79,6 @@ contracts / core / agent / 各服务（都可以直接 require kit）
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | S1（QT-05） | 迁 12 个横切包 + 新增 `db` | ✅ 本仓腿 **QT-05-B** 完成（2026-10-22）：13 包全部有实现；contracts 腿与 core/agent 依赖切换仍在主单 QT-05 |
-| S2（QT-07） | 打 `v0.1.0` | ⬜（今天零 tag，使用方只能 pin `main`） |
+| S2（QT-07） | 打 `v0.1.0` | ✅ 已发版（2026-10-23） |
+| S2.5（KT-08） | `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1` | ✅ 本仓完成（2026-10-25） |
 | QT-17 | agent 用 `kit/db` 自建 `ai.*` | ⬜ |

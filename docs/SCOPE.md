@@ -68,7 +68,7 @@ verified-by: QT-05-B 落地（§5 九条偏差逐条裁决并核对导出面；1
 | `statistics` | 纯数学：均值 / 方差 / 标准差 / 相关 / 分位 / 回归 / 排名 / z 分数 | **金融口径**（年化因子、夏普、回撤定义、收益率序列的业务含义）；参数名或文档里携带策略语义 | — | `pkg/statistics`（5 文件；`LogReturns` / `AnnualizeVolatility` 是量化口径，见 §5 偏差 #2） |
 | `httpclient` | 客户端形状：请求 / 响应包装、超时与重试的通用机制、JSON 解码、4xx → `*errors.AppError` 的映射 | 具体上游的 endpoint 表（tushare / eastmoney 的接口名与参数是数据服务的事）；鉴权凭证的持有与下发 | logging · errors | `pkg/httpclient/client.go`（→ `pkg/logging` / `pkg/errors`，两包同仓后是**同仓内部 import**，允许 ✅；`→ errors` 由 KT-04 增加） |
 | `httpserver` | gin 骨架：CORS、错误中间件、AppError → status 映射、运行模式配置 | **路由清单与业务端点**（`/api/backtest` 这种路径表属 core / agent）；把某个 handler 的语义写进中间件 | errors | `pkg/httpserver`（cors / errors / ginmode，→ `pkg/errors` 同仓内部 ✅） |
-| `auth` | 认证机制本身：token 签发 / 解析 / 刷新、bcrypt 成本、claims 形状、中间件 | **表结构 SQL**（`users` / `audit_logs` 的建表与读写）；角色语义与业务权限的绑定关系；任何直连业务表 | — | `pkg/auth`（含 `pgxpool` 与 10 处 `users`/`audit_logs` SQL）——**今天不是 kit 形状**，见 §5 偏差 #3 |
+| `auth` | 认证机制本身：token 签发 / 解析 / 刷新、bcrypt 成本、claims 形状、gin 中间件；**子包 `auth/httpadapter`**：net/http 适配（Bearer → `Parse` → 拒 `kind != access` → 角色 any-of，401/403 哨兵）、启动闸 `DecideStartup`、`Policy`（route key → Public / AnyAuthenticated / Roles，未声明变更路由 fail-closed 403） | **表结构 SQL**（`users` / `audit_logs` 的建表与读写）；角色语义与业务权限的绑定关系；任何直连业务表；`httpadapter` **不得 import gin** | `httpadapter → auth`（子包复用父包的 token 机制） | `pkg/auth`（含 `pgxpool` 与 10 处 `users`/`audit_logs` SQL）——**今天不是 kit 形状**，见 §5 偏差 #3 |
 | `authz` | 授权裁决的**机制**：策略条目、角色匹配、按方法是否 mutating 分流、中间件 | **具体路由 → 角色的映射表**（那是各服务的资产）；业务动作名（「下单」「选股」）作为规则条件 | auth | `pkg/authz/policy.go`（→ `pkg/auth` 同仓内部 ✅；注释里是 core 路由清单，见 §5 偏差 #4） |
 | `observability` | metrics 注册表、request-id 传递、HTTP transport 埋点、handler 暴露 | **业务指标名**（`backtest_duration_seconds` 这类由使用方在自己仓里注册）；把某条业务链路的口径固化成通用 metric | — | `pkg/observability/metrics.go`（`BacktestDuration` / `ObserveBacktest(strategyName, universe)` / `LLMTokens` / `NTCall*`）——命中词表，见 §5 偏差 #5 |
 | `clock` | 时间原语：`Now` / `Since`、虚拟时钟与推进、单调性守卫、时钟模式 | **回测语义**（把「回测确定性」写进类型名或错误文案的形状）；交易日历与交易日推进（那是 core 的仪器域） | — | `pkg/clock/interfaces.go`（`Mode` / `ModeBacktest` / `ErrTimeRewind`）——`ModeBacktest` 命中词表，见 §5 偏差 #7 |
@@ -86,7 +86,7 @@ verified-by: QT-05-B 落地（§5 九条偏差逐条裁决并核对导出面；1
 contracts（允许：只用 decimal / errors）← core / agent / 各服务（都可以直接 require kit）
 ```
 
-- **kit 内部**：允许，方向由 §3 的「kit 内允许依赖」列钉住（`httpclient → logging / errors`、`httpserver → errors`、`authz → auth`）。除此之外的包间边是新耦合，加了要在 ADR 里留账。
+- **kit 内部**：允许，方向由 §3 的「kit 内允许依赖」列钉住（`httpclient → logging / errors`、`httpserver → errors`、`authz → auth`、`auth/httpadapter → auth`）。除此之外的包间边是新耦合，加了要在 ADR 里留账。
 - **kit → 仓外**：只允许标准库与第三方。**禁止** `tellurion/...`、`.../tellurion-contracts`、`.../tellurion-agent` 与任何应用仓路径。
   不变量是 `kit ← contracts`：contracts 可以依赖 kit 的 `decimal`/`errors`，**反向一条都不许有**（本仓 CI 里没有 core 源码，所以这条红向在编译期就成立，护栏再补一道静态的）。
 - 新增第三方依赖前，先在本仓 `AGENTS.md` §4 登记，再改 `go.mod`。
@@ -107,7 +107,7 @@ KT-01 的清单是**目标边界**；下表是 core 今天的形状与之不符�
 | 6 | `pkg/errors` 有 `ErrCodeDataQuality` | `pkg/errors/errors.go` 的 9 个 `ErrCode*` 之一 | **已裁决（QT-05-B）**：保留 `ErrCodeDataQuality`。它是**分类码**而不是业务规则（判据 1 管的是业务概念）；data-service 会用同一个分类，改名反而制造第二个词。 |
 | 7 | `pkg/clock` 的模式名与错误文案带着回测语义 | `interfaces.go`：`Mode`、`ModeBacktest`、`ErrTimeRewind`（"…破坏回测确定性"） | **已裁决（QT-05-B）**：`ModeBacktest` → **`ModeDeterministic`**；`ModeLive` 原名保留（它指的是墙钟，不在词表内）。**iota 顺序照搬不变**（`ModeDeterministic=0`、`ModeLive=1`，`clock.go:22` 注明是冻结契约），所以 core 切到本仓时只有名字要改、数值语义不动。错误文案与注释同步中性化（实测 `clock/clock.go` 里「回测」「实盘」「backtest」零命中）。 |
 | 8 | `db` 的「迁移执行」今天没有可搬的 runner | core `migration_manager.go` 已于 2026-09-18 删除（零调用方，见 core `migrations/README.md`）；唯一的迁移路径是 `pkg/storage/postgres.go` 的 `migrate()` + `migrationStatements()`（`:150`，约 30 条内联 DDL）；`NewPostgresStore`（`:33`）调 `store.migrate()`，**不能搬** | **已落地（QT-05-B）**：`db` = `BuildDSN` + `Connect` / `ConnectRedis` + `Migrate(ctx, Execer, statements)`；零 DDL、零迁移记录表，空白语句跳过、遇错即停并报位次。 |
-| 9 | 四处内部 import 不是障碍 | `httpclient → logging`、`httpserver → errors`、`authz → auth`（以上 QT-05-B）、`httpclient → errors`（KT-04，见 ADR 0002）；测试侧 `pkg/auth/{bootstrap,middleware}_test.go → pkg/testenv`、`pkg/clock/*_test.go` 自 import | **已落地（QT-05-B / KT-04）**：生产侧四条是同仓内部边；搬 auth 时测试改为自带 `TestMain`（gin 模式集中设置），不依赖 core 的 `testenv`。 |
+| 9 | 五处内部 import 不是障碍 | `httpclient → logging`、`httpserver → errors`、`authz → auth`（以上 QT-05-B）、`httpclient → errors`（KT-04，见 ADR 0002）、`auth/httpadapter → auth`（KT-08，见 ADR 0003）；测试侧 `pkg/auth/{bootstrap,middleware}_test.go → pkg/testenv`、`pkg/clock/*_test.go` 自 import | **已落地（QT-05-B / KT-04 / KT-08）**：生产侧五条是同仓内部边；搬 auth 时测试改为自带 `TestMain`（gin 模式集中设置），不依赖 core 的 `testenv`。 |
 
 ## 6. 护栏
 

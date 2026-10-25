@@ -1,6 +1,6 @@
 # tellurion-kit
 
-> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／S2 已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23，tag 在 `main` 上）**
+> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23）／已发版 `v0.1.1`（KT-08，2026-10-25：新增 `auth/httpadapter` 子包），tag 均在 `main` 上**
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
@@ -8,7 +8,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `logging/` `errors/` `id/` `decimal/` `statistics/` `httpclient/` `httpserver/` `auth/` `authz/` `observability/` `clock/` `sandbox/{staticcheck,runner}/` `db/` | **13 个包（QT-05-B 已落地）**：逐包「收什么 / 不收什么」在 [`docs/SCOPE.md`](docs/SCOPE.md) §3，对外形状在 [`docs/api-schema.md`](docs/api-schema.md) §1 |
+| `logging/` `errors/` `id/` `decimal/` `statistics/` `httpclient/` `httpserver/` `auth/` `auth/httpadapter/` `authz/` `observability/` `clock/` `sandbox/{staticcheck,runner}/` `db/` | **13 个包（QT-05-B 已落地）+ `auth/httpadapter` 子包（KT-08，2026-10-25）**：逐包「收什么 / 不收什么」在 [`docs/SCOPE.md`](docs/SCOPE.md) §3，对外形状在 [`docs/api-schema.md`](docs/api-schema.md) §1 |
 | `docs/` | 本仓文档：台账 / 边界 / 决策 / 归档 —— 从这里进：`docs/README.md` |
 | `docs/SCOPE.md` | **13 包逐包准入 / 禁入清单** + 业务词表 + 依赖方向 + 实测偏差登记（KT-01） |
 | `CHANGELOG.md` | 版本账本：每个发版一节，breaking 逐条写明「旧 → 新」 |
@@ -84,11 +84,13 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
-| `v0.1` | 已发版（2026-10-23，首个版本）；13 包落码（QT-05-B） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
+| `v0.1` | 已发版（`v0.1.0` 2026-10-23 首个版本；`v0.1.1` 2026-10-25 新增 `auth/httpadapter` 子包）；13 包 + `auth/httpadapter`（QT-05-B / KT-08） | 尚无 require（QT-05 contracts 腿落码后接入） | 尚无 require（13 包已迁入本仓；core 侧改 `require` 归 QT-05 主单 ③-③） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
 | `main`（未发版） | 开发基线，**不做兼容承诺** | 已发版 `v0.1.0` | 已发版 `v0.1.0` | 已发版 `v0.1.0` |
 <!-- matrix:end -->
 
 首个版本 `v0.1.0` 已于 **2026-10-23** 打在 `main` 上并 push（`QT-07 ③-S2-a`）。发版前的 13 包落码与两条 breaking（`decimal.Div` 舍入口径、`httpclient` 4xx 返回）都记在 [`CHANGELOG.md`](CHANGELOG.md) 的 `v0.1.0` 节；使用方从 `main` 切到 `v0.1.0` 不需要改代码（内容相同）。
+
+`v0.1.1` 已于 **2026-10-25** 发版（`KT-08`）：只增不改——新增 `auth/httpadapter` 子包（net/http 适配 + 启动闸 + `Policy`），并把 `KT-06` / `KT-07` 两条 PATCH 修复一并发版。使用方从 `v0.1.0` 升到 `v0.1.1` 不需要改代码。
 
 ## 发版流程
 
