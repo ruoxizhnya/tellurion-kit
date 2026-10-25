@@ -22,7 +22,10 @@
 //     computed at all (e.g. Pearson with constant input) may return NaN to
 //     signal "not computable" — see their doc comments.
 //
-// Scope note: domain calibers (log-returns, annualization factors) are
-// deliberately NOT here — they encode how a particular caller measures
-// time or growth. This package stays pure math.
+// Scope note: besides pure math this package carries the two formula-only
+// helpers migrated from core for the phase-2 package switch (KT-10, 裁-18):
+// LogReturns and AnnualizeVolatility. Both take every parameter explicitly
+// (there is no built-in annualization window or return convention); composite
+// domain calibers (Sharpe, drawdown definitions) still stay outside this
+// package, and period counts such as 252 vs 365 are the caller's choice.
 package statistics

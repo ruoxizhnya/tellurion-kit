@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-22
-verified-by: QT-05-B 落地（§2 十三包已由目标态变为现状；§8 S1 本仓腿标 ✅；逐包真相仍在 SCOPE.md）
+last-verified: 2026-10-25
+verified-by: KT-08 / KT-09 / KT-10 落地（§8 分期表补 S2.5 / S2.6 / S3 三行；§2 包清单与内部边未变）
 ---
 
 # 架构 — tellurion-kit
@@ -82,4 +82,5 @@ contracts / core / agent / 各服务（都可以直接 require kit）
 | S2（QT-07） | 打 `v0.1.0` | ✅ 已发版（2026-10-23） |
 | S2.5（KT-08） | `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1` | ✅ 本仓完成（2026-10-25） |
 | S2.6（KT-09） | `auth.IssueServiceToken` 服务账号 access token，打 `v0.1.2` | ✅ 本仓完成（2026-10-25） |
+| S3（KT-10） | 二期切包前置：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`，打 `v0.1.3` | ✅ 本仓完成（2026-10-25）；`LoopbackOnly` gin 中间件留 core |
 | QT-17 | agent 用 `kit/db` 自建 `ai.*` | ⬜ |

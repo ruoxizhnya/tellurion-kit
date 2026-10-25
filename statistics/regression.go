@@ -1,5 +1,7 @@
 package statistics
 
+import "math"
+
 // Slope returns the slope of the ordinary least-squares line
 // y = slope * x + intercept, where x is implicitly the index
 // [0, 1, 2, ..., n-1] of `y`.
@@ -103,4 +105,51 @@ func ZScore(values []float64) []float64 {
 		out[i] = (v - m) / s
 	}
 	return out
+}
+
+// LogReturns converts a price series into log-returns:
+//
+//	r[i] = ln(prices[i+1] / prices[i])
+//
+// The result has len(prices) - 1 elements. NaN is returned for any
+// transition where EITHER price is non-finite (NaN, Inf) or
+// non-positive (the log of a non-positive number is undefined).
+// Returns nil for slices with fewer than 2 elements.
+//
+// Migrated verbatim from core pkg/statistics (KT-10, 裁-18) so core can
+// switch to this package without a semantic change.
+func LogReturns(prices []float64) []float64 {
+	n := len(prices)
+	if n < 2 {
+		return nil
+	}
+	out := make([]float64, n-1)
+	for i := 1; i < n; i++ {
+		prev := prices[i-1]
+		curr := prices[i]
+		if !isFinitePositive(prev) || !isFinitePositive(curr) {
+			out[i-1] = math.NaN()
+			continue
+		}
+		out[i-1] = math.Log(curr / prev)
+	}
+	return out
+}
+
+// isFinitePositive returns true iff v is a finite float > 0.
+// Used by LogReturns to guard the log() call.
+func isFinitePositive(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0) && v > 0
+}
+
+// AnnualizeVolatility scales a daily (or per-period) volatility to
+// an annual figure. `periodsPerYear` is typically 252 for daily
+// stock data or 365 for crypto.
+//
+// Migrated verbatim from core pkg/statistics (KT-10, 裁-18).
+func AnnualizeVolatility(dailyVol float64, periodsPerYear int) float64 {
+	if periodsPerYear <= 0 {
+		return 0
+	}
+	return dailyVol * math.Sqrt(float64(periodsPerYear))
 }

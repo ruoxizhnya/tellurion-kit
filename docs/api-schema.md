@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-22
-verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行核对，与代码不符处已订正）
+last-verified: 2026-10-25
+verified-by: KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr` 已按导出面核对）
 ---
 
 # API Schema — tellurion-kit
@@ -22,9 +22,9 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
 | `errors` | 分类错误 `AppError`（9 个 `ErrCode*`）+ 包装（保留 `%w`）+ 堆栈 | 与 contracts 的三类哨兵配合 | ✅ 已落地（同上） |
 | `id` | 与域无关的 ID：`JobID` / `SubscriptionID` | job_id / 订阅 id | ✅ 已落地；**`OrderID` 不在本仓**（交易域，SCOPE §5 #1）；UUIDv7 生成器是包内机制，**未导出通用入口** |
 | `decimal` | 定点小数（scale ≤ 18、`Round(scale)`、`Div(a, b, resultScale)`） | 价格与金额（禁止 float 做钱） | ✅ 已落地；`Div` 的舍入口径：**四舍五入（half away from zero）**——余数超过**或恰好等于**半个单位都向远离零进位，与 `Round` 同口径（KT-03 ② 裁决，2026-10-23）。`resultScale` 小于被除数 scale 时定标走**分母侧**（被除数低位数字活到舍入步，`2.5 / 1` 在 scale 0 答 `3`）；任何定标步越界返回 `ErrOverflow`，不静默截断也不静默跳乘（KT-06，2026-10-23）。按 README，舍入口径属 MAJOR 语义 |
-| `statistics` | 均值 / 方差 / 相关 / 分位 / 回归 / 排名 / z 分数 | 指标计算 | ✅ 已落地；**只收纯数学**——年化窗口与收益率口径留 core（SCOPE §5 #2） |
+| `statistics` | 均值 / 方差 / 标准差 / 相关 / 分位 / 回归 / 排名 / z 分数 + **`LogReturns` / `AnnualizeVolatility`**（公式型，参数与周期数全由调用方显式传入） | 指标计算 | ✅ 已落地；**只收纯数学与公式**——参数显式、无内置年化窗口或收益约定；夏普 / 回撤等复合口径留 core（SCOPE §5 #2，KT-10 / 裁-18 改判） |
 | `httpclient` | 带超时 / 重试的客户端 + 统一 JSON 解码 | 服务间调用 | ✅ 已落地；**熔断未提供**（今天没有 breaker，别按"有熔断"编码）；**4xx 返回 `*errors.AppError`**，`err == nil` 只代表 2xx/3xx（口径见 §3） |
-| `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式 | 各服务 HTTP 面 | ✅ 已落地（同上） |
+| `httpserver` | 统一错误响应（`AppError` + 状态码↔错误码映射）、CORS、gin 模式、**回环来源判据 `IsLoopbackRemoteAddr`**（只看 `RemoteAddr`，不信 `X-Forwarded-For`） | 各服务 HTTP 面；insecure 模式的逐请求来源判定 | ✅ 已落地（同上）；KT-10 只迁判据，**`LoopbackOnly` gin 中间件与 403 文案仍留 core**（应用层装配口径） |
 | `auth` | token 签发 / 解析 / 刷新、**服务账号 access token 签发（`IssueServiceToken(subject, role, ttl)`）**、bcrypt、claims、gin 中间件 | API 保护（认证） | ✅ 已落地；**只收机制**——`users` / `audit_logs` 的 SQL 与角色语义留 core，身份回读经 `IdentityLoader` 端口（SCOPE §5 #3）；服务账号签发见 KT-09（2026-10-25） |
 | `auth/httpadapter` | net/http 适配（源码不 import gin；依赖闭包因父包 `auth` 的 gin 中间件仍含 gin，见 ADR 0003）：`Authenticate`（Bearer → `Parse` → 拒 `kind != access`，失败 `ErrUnauthenticated` → 401）、`Authorize`（角色 any-of，失败 `ErrForbidden` → 403）、`Guard` 中间件、`ClaimsFromContext`、`DecideStartup` 启动闸、`Policy`（route key → Public / AnyAuthenticated / Roles，**未声明变更路由 403**） | risk / analytics / data 等 net/http 服务的认证与鉴权 | ✅ 已落地（KT-08，2026-10-25）；route key 取 `http.Request.Pattern`，须按路由挂载 `Guard`；路由 → 角色的策略表仍由各服务维护 |
 | `authz` | route key → `Rule`（Public / AnyAuthenticated / Roles）+ 执法中间件 | API 保护（鉴权） | ✅ 已落地；**路由→角色的表由各服务维护**，未登记的变更端点 fail-closed（SCOPE §5 #4） |
@@ -107,4 +107,4 @@ verified-by: QT-05-B 落地（13 包全部有实现；本表按导出面逐行�
 | `users` / `audit_logs` 的读写与建表 | 留 core（SCOPE §5 #3）；本仓 `auth` 经 `IdentityLoader` 端口回读身份 |
 | 具体路由 → 角色的策略表 | 各服务的资产（SCOPE §5 #4）；本仓 `authz` 只提供 `Rule` 机制与执法中间件 |
 | `sandbox/wasm`（WASM 策略宿主） | 留 core：它逐 bar 喂数据，必须在引擎进程内（ADR-027 §2.6.1） |
-| `OrderID` / `LogReturns` / `AnnualizeVolatility` / `BacktestDuration` 一族 | 分别留 core（SCOPE §5 #1 / #2 / #5）：交易域 ID 与量化口径不是工具 |
+| `OrderID` / `BacktestDuration` 一族 | 分别留 core（SCOPE §5 #1 / #5）：交易域 ID 与业务指标不是工具。`LogReturns` / `AnnualizeVolatility` 已由 KT-10 / 裁-18 迁入本仓（SCOPE §5 #2 改判） |

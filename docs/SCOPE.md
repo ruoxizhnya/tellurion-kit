@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-22
-verified-by: QT-05-B 落地（§5 九条偏差逐条裁决并核对导出面；13 包全部有实现，check_scope 绿）
+last-verified: 2026-10-25
+verified-by: KT-09 / KT-10 落地（§3 `auth` / `statistics` / `httpserver` 行同步导出面；§5 偏差 #2 由裁-18 改判，check_scope 绿）
 ---
 
 # SCOPE — kit 的逐包准入 / 禁入清单
@@ -65,9 +65,9 @@ verified-by: QT-05-B 落地（§5 九条偏差逐条裁决并核对导出面；1
 | `errors` | 错误包装（`Wrap`/`Wrapf`）、分类码（internal / invalid input / not found / conflict / unavailable / timeout）、`errors.Is` 友好形状 | **业务错误码语义**（`ErrFillTimingMismatch` 这类具体判定属 contracts/core）；把某类业务失败降格成通用码 | — | `pkg/errors`（9 个 `ErrCode*`，stdlib-only ✅；`ErrCodeDataQuality` 是边缘名，见 §5 偏差 #6） |
 | `id` | 与域无关的 ID 类型与生成器（UUIDv7、job id、订阅 id） | **交易对象 ID**（`OrderID` 这类：它的存在就意味着订单域进了底座）；带业务前缀的编码规则 | — | `pkg/id/order.go`（`OrderID`/`JobID`/`SubscriptionID`）——`OrderID` 命中词表，见 §5 偏差 #1 |
 | `decimal` | 定点数运算、舍入模式、精度与 scale、JSON 编解码 | **费率模型 / 价格档位 / 单位换算规则**（`fees` 留 core）；任何「按 A 股规则取整」的语义 | — | `pkg/decimal`（`Decimal` + 12 个构造/运算，stdlib-only ✅，最干净的候选） |
-| `statistics` | 纯数学：均值 / 方差 / 标准差 / 相关 / 分位 / 回归 / 排名 / z 分数 | **金融口径**（年化因子、夏普、回撤定义、收益率序列的业务含义）；参数名或文档里携带策略语义 | — | `pkg/statistics`（5 文件；`LogReturns` / `AnnualizeVolatility` 是量化口径，见 §5 偏差 #2） |
+| `statistics` | 纯数学：均值 / 方差 / 标准差 / 相关 / 分位 / 回归 / 排名 / z 分数；**两个公式型 helper**（`LogReturns` / `AnnualizeVolatility`，参数与周期数全由调用方显式传入，无内置年化窗口或收益约定） | **复合金融口径**（夏普、回撤定义、收益率序列的业务含义）；内置年化窗口 / 收益率约定；参数名或文档里携带策略语义 | — | `pkg/statistics`（5 文件；`LogReturns` / `AnnualizeVolatility` 已由 **KT-10 / 裁-18** 逐字迁入本仓，见 §5 偏差 #2） |
 | `httpclient` | 客户端形状：请求 / 响应包装、超时与重试的通用机制、JSON 解码、4xx → `*errors.AppError` 的映射 | 具体上游的 endpoint 表（tushare / eastmoney 的接口名与参数是数据服务的事）；鉴权凭证的持有与下发 | logging · errors | `pkg/httpclient/client.go`（→ `pkg/logging` / `pkg/errors`，两包同仓后是**同仓内部 import**，允许 ✅；`→ errors` 由 KT-04 增加） |
-| `httpserver` | gin 骨架：CORS、错误中间件、AppError → status 映射、运行模式配置 | **路由清单与业务端点**（`/api/backtest` 这种路径表属 core / agent）；把某个 handler 的语义写进中间件 | errors | `pkg/httpserver`（cors / errors / ginmode，→ `pkg/errors` 同仓内部 ✅） |
+| `httpserver` | gin 骨架：CORS、错误中间件、AppError → status 映射、运行模式配置；**回环来源判据** `IsLoopbackRemoteAddr`（只看 `RemoteAddr`，不信 `X-Forwarded-For`） | **路由清单与业务端点**（`/api/backtest` 这种路径表属 core / agent）；把某个 handler 的语义写进中间件；**`LoopbackOnly` gin 中间件与 403 文案**（应用层装配口径，core 保留） | errors | `pkg/httpserver`（cors / errors / ginmode，→ `pkg/errors` 同仓内部 ✅）；`IsLoopbackRemoteAddr` 由 **KT-10 / 裁-18** 迁入，`LoopbackOnly` 留 core |
 | `auth` | 认证机制本身：token 签发 / 解析 / 刷新、**服务账号 access token 签发（`IssueServiceToken`：只 access、无 refresh、角色字符串不透明）**、bcrypt 成本、claims 形状、gin 中间件；**子包 `auth/httpadapter`**：net/http 适配（Bearer → `Parse` → 拒 `kind != access` → 角色 any-of，401/403 哨兵）、启动闸 `DecideStartup`、`Policy`（route key → Public / AnyAuthenticated / Roles，未声明变更路由 fail-closed 403） | **表结构 SQL**（`users` / `audit_logs` 的建表与读写）；角色语义与业务权限的绑定关系；任何直连业务表；`httpadapter` **不得 import gin** | `httpadapter → auth`（子包复用父包的 token 机制） | `pkg/auth`（含 `pgxpool` 与 10 处 `users`/`audit_logs` SQL）——**今天不是 kit 形状**，见 §5 偏差 #3 |
 | `authz` | 授权裁决的**机制**：策略条目、角色匹配、按方法是否 mutating 分流、中间件 | **具体路由 → 角色的映射表**（那是各服务的资产）；业务动作名（「下单」「选股」）作为规则条件 | auth | `pkg/authz/policy.go`（→ `pkg/auth` 同仓内部 ✅；注释里是 core 路由清单，见 §5 偏差 #4） |
 | `observability` | metrics 注册表、request-id 传递、HTTP transport 埋点、handler 暴露 | **业务指标名**（`backtest_duration_seconds` 这类由使用方在自己仓里注册）；把某条业务链路的口径固化成通用 metric | — | `pkg/observability/metrics.go`（`BacktestDuration` / `ObserveBacktest(strategyName, universe)` / `LLMTokens` / `NTCall*`）——命中词表，见 §5 偏差 #5 |
@@ -100,7 +100,7 @@ KT-01 的清单是**目标边界**；下表是 core 今天的形状与之不符�
 | # | 偏差 | 实测证据 | 裁决与落地（QT-05-B，2026-10-22） |
 |---|---|---|---|
 | 1 | `pkg/id` 的文件名与导出符号就是交易域 | `pkg/id/order.go`：`OrderID` / `JobID` / `SubscriptionID` | **已裁决（QT-05-B）**：本仓 `id` 只导出 `JobID` / `SubscriptionID`；`OrderID` 留 core（后续随 contracts 的 domain 值对象走）。不靠改名糊。⚠️ UUIDv7 生成器（`newV7`）**未导出**，所以 §3 那行「通用 UUIDv7」今天只是内部机制——要对外提供得按 MINOR 加一个导出函数（已在 `api-schema.md` §5 登记为"今天没有"）。 |
-| 2 | `pkg/statistics` 有量化口径函数 | `LogReturns`、`AnnualizeVolatility`（`pkg/statistics/basic.go` 一族） | **已裁决（QT-05-B）**：本仓 `statistics` 只收纯数学（均值/方差/相关/分位/回归/排名/z 分数）；`LogReturns` / `AnnualizeVolatility` 留 core。 |
+| 2 | `pkg/statistics` 有量化口径函数 | `LogReturns`、`AnnualizeVolatility`（`pkg/statistics/basic.go` 一族） | **改判（KT-10 / 裁-18，2026-10-25）**：这两个是**公式**而非复合口径——参数（价格序列、周期数）全由调用方显式传入，没有内置年化窗口或收益约定，故与 QT-05-B 的「纯数学」口径不冲突，**逐字迁入本仓**（导出签名与 core 一致，逐位对拍测试在 `statistics/returns_test.go`）。夏普 / 回撤等复合口径仍留 core。 |
 | 3 | `pkg/auth` 带表结构与 SQL | `pkg/auth/auth.go:169,204,237,311,320,360,372,389,494,510` 打 `users` / `audit_logs`；`pgxpool` 是构造入参 | **已裁决（QT-05-B）**：SQL 留 core。本仓 `auth` 只收 token 签发/解析/刷新、bcrypt、claims、中间件；不带 pgxpool、不命名任何表。角色是不透明字符串（角色词表与 `CanTrade` 语义留 core）；`Config.PublicPaths` 由调用方传入；刷新经 `IdentityLoader` 端口回读身份。 |
 | 4 | `pkg/authz` 的 `Policy` 是按 core 路由清单写的 | `pkg/authz/policy.go` 注释里的「策略 CRUD / 回测 / 下单 / 选股 / 风控」条目 | **已裁决（QT-05-B）**：本仓 `authz` 只收机制——`Policy` 是 route key → `Rule`（Public / AnyAuthenticated / Roles 三档，`NewPolicy` 校验互斥），角色匹配是 any-of；具体路由→角色的表由各服务维护。未登记路由 fail-closed。 |
 | 5 | `pkg/observability` 里已经注册了业务指标 | `metrics.go:41` `BacktestDuration`（`backtest_duration_seconds`）、`:132` `ObserveBacktest(strategyName, universe string, ...)`、`LLMTokens`、`NTCallCount/Duration` | **已裁决（QT-05-B）**：本仓 `observability` 只收通用 registry、request-id 中间件/transport、`/metrics` handler；`BacktestDuration` / `LLMTokens` / `NTCall*` 留 core，由使用方注册。 |

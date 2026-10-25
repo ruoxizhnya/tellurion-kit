@@ -8,6 +8,20 @@
 
 ## [Unreleased]
 
+## [v0.1.3] - 2026-10-25
+
+### 新增（MINOR 级：二期切包前置 —— `statistics` / `httpserver` 补函数）
+
+- **KT-10**（2026-10-25，裁-18）：为 core 二期切 `statistics` / `httpserver` 补齐导出缺口，导出面**只增不改**，无 breaking。
+  - `statistics.LogReturns(prices []float64) []float64`：`r[i] = ln(prices[i+1]/prices[i])`，长度 `len(prices)-1`；任一价格为非有限或非正 → 该位 `NaN`；少于 2 个元素 → `nil`。
+  - `statistics.AnnualizeVolatility(dailyVol float64, periodsPerYear int) float64`：`periodsPerYear <= 0` 返回 0，否则 `dailyVol * sqrt(periodsPerYear)`。
+    两者导出签名与 core `pkg/statistics` **逐字一致**，core 切包时无需改调用点；周期数（252 / 365）与收益约定的选择仍在调用方，本仓不内置年化窗口。
+  - `httpserver.IsLoopbackRemoteAddr(remoteAddr string) bool`：只看 `host:port` 文本（`127.0.0.1:5000` / `[::1]:5000` / `localhost:5000` / 无端口形态），空串、解析失败与非回环 IP 一律 false（fail-closed）；**不信 `X-Forwarded-For`**。
+  - **`httpserver.LoopbackOnly` 不搬**：403 文案与「容器内 `RemoteAddr` 不是回环」的装配口径属应用层策略，core 保留那层 gin 包装（kit 的依赖白名单虽允许 gin，本单按派发只补切包所需判据）。⚠️ 跨仓腿：core 二期台账需写明此分工——本仓未改 core。
+  - 判据：`statistics/returns_test.go`（`TestLogReturnsParity` 11 例 + `TestLogReturnsRandomParity` 3 组 seed=20261025 随机向量 + `TestAnnualizeVolatilityParity` 25 组黄金 bits；有限值比 `math.Float64bits`，NaN 比 `IsNaN`）、`httpserver/loopback_test.go`（14 例）。
+  - **破坏验证（真退出码）**：把 `AnnualizeVolatility` 的 `math.Sqrt(float64(periodsPerYear))` 改成 `float64(periodsPerYear)` → `TestAnnualizeVolatilityParity` 红（`vol=0.01 ppy=252` 期望 `0x3fc451c23ca192cc` 实得 `0x400428f5c28f5c29`，另两组同红）；
+    逐字节还原（`statistics/regression.go` SHA256 `83C515CB…D4C0` 一致）后 `go test ./statistics/...` exit=0。
+
 ## [v0.1.2] - 2026-10-25
 
 ### 新增（MINOR 级：`auth` 服务账号 access token 签发）

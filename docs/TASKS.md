@@ -158,7 +158,16 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 - **⑤ 验收**：签出的 token 经 `Parse` 得到 `kind=access` + 传入 role + 传入 subject；TTL 到期后 `Parse` 报过期；空参数报错；`go test ./auth/...` 绿；打 `v0.1.2`。
 - **⑥ 边界**：只做签发；分发、部署清单与服务侧角色登记属 core QT-71。
 
-### KT-10 · 二期切包前置：`statistics` / `httpserver` 的缺口补齐（裁-18）[P2] ⬜
+### KT-10 · 二期切包前置：`statistics` / `httpserver` 的缺口补齐（裁-18）[P2] ✅ 完成（2026-10-25）
+
+> **结案（2026-10-25）**：
+> ① `statistics/regression.go` 逐字追加 `LogReturns(prices []float64) []float64` / `AnnualizeVolatility(dailyVol float64, periodsPerYear int) float64`（含私有 `isFinitePositive`），导出签名与 core `pkg/statistics` 逐字一致；`statistics/doc.go` 的 scope note 同步说明「公式型 helper 进来、复合口径仍在外」。
+> ② `httpserver/loopback.go` 新增 `IsLoopbackRemoteAddr(remoteAddr string) bool`。**`LoopbackOnly` 不搬**：kit 的依赖白名单**允许** gin，但按派发与本单「只补 core 二期切包缺口」的边界，403 文案与容器装配口径属于应用层策略，core 保留那层 gin 包装。⚠️ **跨仓腿**：core 二期台账需写明「`LoopbackOnly` 留 core、只切 `IsLoopbackRemoteAddr`」——本仓按「只在自己的仓工作」未改 core。
+> ③ 判据：`statistics/returns_test.go` 的 `TestLogReturnsParity`（11 例：nil/空/单元素/复合/0 价/负价/NaN/±Inf/混合）、`TestLogReturnsRandomParity`（3 组随机向量，seed=20261025，比 `math.Float64bits`）、`TestAnnualizeVolatilityParity`（25 组 core 黄金 bits，含 `ppy<=0 → 0`、±Inf、负数；NaN 只断言 `IsNaN`）；`httpserver/loopback_test.go` 的 `TestIsLoopbackRemoteAddr`（14 例：回环放行 / 非回环 / 空串 / 不可解析 fail-closed）。
+> **破坏验证（真退出码）**：把 `AnnualizeVolatility` 的 `math.Sqrt(float64(periodsPerYear))` 改成 `float64(periodsPerYear)` →
+> `TestAnnualizeVolatilityParity` 红（`vol=0.01 ppy=252` 期望 `0x3fc451c23ca192cc` 实得 `0x400428f5c28f5c29`，`ppy=365` 与 `vol=0.2` 两组同红，测试进程非 0 退出）；
+> 逐字节还原（`statistics/regression.go` SHA256 `83C515CB472BEBD60B52CAA6B899CD8170DCAD5FF8FC09920AECEC47A117D4C0` 前后一致）后 `go test ./statistics/...` exit=0。
+> **验收（真退出码）**：`gofmt -l .` 空；`go build ./...` 0；`go vet ./...` 0；`go test ./... -count=1` 全 ok（`statistics` / `httpserver` 均 ok）；`go run ./tools/check_scope` 0（「业务词零命中、无越界 import、十三包清单齐且覆盖现有包」）；`go run ./tools/check_release_matrix` 0。已发 `v0.1.3`（annotated tag，在 `main` 上，**不与 KT-09 混发**）。
 
 - **① 目标**：让 core 二期能切 `statistics` 与 `httpserver`，先把 kit 缺的函数补齐。
 - **② 上下文**：core `statistics` 有 `LogReturns` / `AnnualizeVolatility`，kit 无；core `httpserver` 有 `LoopbackOnly` / `IsLoopbackRemoteAddr`，kit 无。两组是 core 二期切换的唯一硬缺口（导出面已实测；core 侧点数分别 20 / 34）。
@@ -182,7 +191,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 | S2 | 打 `v0.1.0`；下游换 tag | `QT-07` | S1 全绿 + S1.5 有裁决（改或不改都要留账） |
 | S2.5 | ✅ `auth` 的 net/http 适配 + 启动闸，打 `v0.1.1`（裁-15）（2026-10-25 完成，正文见归档 KT-08） | `KT-08` | risk / analytics / data 三腿开工前 |
 | S2.6 | ✅ `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17）（2026-10-25 完成，正文见 KT-09） | `KT-09` | core QT-71 开工前 |
-| S3（二期） | 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（gin 依赖另评），打 `v0.1.3`（裁-18） | `KT-10` | core 二期切包前；不与一期混发 |
+| S3（二期） | ✅ 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（`LoopbackOnly` 留 core），打 `v0.1.3`（裁-18）（2026-10-25 完成，正文见 KT-10） | `KT-10` | core 二期切包前；不与一期混发 |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 
