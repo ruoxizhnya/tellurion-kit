@@ -6,7 +6,7 @@
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
-**状态**：S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（2026-10-23，QT-07 ③-S2-a）／已发版 `v0.1.1`（2026-10-25，KT-08：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（2026-10-25，KT-09：新增 `auth.IssueServiceToken` 服务账号签发）／已发版 `v0.1.3`（2026-10-25，KT-10：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）
+**状态**：S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（2026-10-23，QT-07 ③-S2-a）／已发版 `v0.1.1`（2026-10-25，KT-08：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（2026-10-25，KT-09：新增 `auth.IssueServiceToken` 服务账号签发）／已发版 `v0.1.3`（2026-10-25，KT-10：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 **`v0.1.4`**（2026-10-25，KT-11：`auth/httpadapter.Authenticate` 与 `auth.Middleware` 对 `role=service` 的**非数字 subject** 不再判 401——这一版含行为变更，risk / data / analytics 已升 pin；三件套齐：tag `v0.1.4` 已在**远端**（`git ls-remote --tags origin` → peel `8077c36`）、`CHANGELOG.md:11`、`README.md:87` 兼容矩阵那行）
 
 ## 2. 构建 / 测试（必须单仓可跑）
 
