@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-25
-verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、破坏验证、v0.1.1 发版账）
+last-verified: 2026-10-26
+verified-by: A 组三形状包决策材料（2026-10-26：本仓零改动，只在「二、跨仓指针」留一行；三形状均被 `tools/check_scope` 词表机械排除）+ KT-08 结案归档（auth/httpadapter 落码、表驱动用例、破坏验证、v0.1.1 发版账）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -243,6 +243,7 @@ verified-by: KT-08 结案归档（auth/httpadapter 落码、表驱动用例、�
 | QT-05 | S1 主单（契约层腿 + core 侧依赖切换），本仓腿拆为 QT-05-B | `tellurion-contracts:docs/TASKS.md`（2026-10-21 自 core 迁入；core `tellurion:docs/TASKS.md` 留同号指针） |
 | QT-07 | S2：打 `v0.1.0` 并把下游伪版本换成 tag | `tellurion:docs/TASKS.md` |
 | QT-17 | agent 数据自持会用到本仓的 `db` | `tellurion-agent:docs/TASKS.md`（2026-10-21 自 core 迁入；core 留同号指针） |
+| A 组（三形状包：risk / 编排 / broker DTO） | **本仓零改动、无需立单**：三个形状都不进 kit——`tools/check_scope/main.go:45-60` 的 `businessWords` 含 `order` / `market`，且切词命中驼峰（`OrderRequest` → `[order request]`）；kit 准入判据第 2 条还要求「被 ≥2 个部署单元使用」（`docs/SCOPE.md:18-27`） | 裁决材料在 `tellurion-contracts:docs/design/shape-packages-decision-material.md`（2026-10-26，§3.4 有机械证据） |
 
 ---
 
