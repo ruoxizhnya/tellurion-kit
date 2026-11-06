@@ -220,6 +220,26 @@ verified-by: A 组三形状包决策材料（2026-10-26：本仓零改动，只�
 
 ---
 
+### KT-12 · 把 `-race` 真接进 CI（QT-05-B 登记的两条没做腿之一） [P2] ⬜
+
+- **① 目标**：`httpserver` / `auth` / `db` / `observability` 这类并发面在 CI 里被竞态检测器跑过，而不是只被 `-count=1` 跑过。
+- **② 上下文**：QT-05-B 结案把两条腿明文记成**没做**——「现场破坏验证与 `-race`」（本文件 `:63-65`，正文在 `archive/TASKS-2026-10-22-archived.md`）；实测 `.github/workflows/ci.yml:49` 今天只有 `go test ./... -count=1`，全仓 CI **无 `-race`**；`AGENTS.md` §2 的三条命令也没带它。⇒ 「并发安全」这句话在本仓目前**没有机械判据**。
+- **③ 要求**：① `ci.yml` 增一步 `go test ./... -race -count=1`（Linux runner，gcc 可用）；② 先跑一次全量，把**已经红的**用例逐条登记进 `docs/TASKS.md` 或就地修，**禁止**把用例改名/加 `t.Skip` 来变绿；③ 若一次性全绿不可达，允许先只对 `auth` / `httpserver` / `db` 三包开 `-race` 门禁，并在 CI 步骤名里写明覆盖面（覆盖面必须成文，不许让读者以为全仓已过）；④ `AGENTS.md` §2 同步这条命令与覆盖面注记。
+- **④ 约束与非目标**：不改任何被测代码的语义（本单是测试与 CI 配置）；不为跑绿而放宽断言；不引第三方竞态工具；本机 Windows 无 gcc ⇒ `-race` 需 `CGO_ENABLED=1`，**本机跑不动属预期**，结论一律以 CI 输出为准（如实登记，不拿本地绿当证据）。
+- **⑤ 验收**：① CI 的 `-race` 步骤**真实执行**（step 级看，不是 job 绿——`skipped` 不算过）；② 破坏验证一条：在 `auth` 或 `httpserver` 里临时加一个无锁并发写 map 的用例 ⇒ `-race` 步骤必须红、`-count=1` 步骤必须保持绿（证明这条腿**抓的是别的东西**，不是重复覆盖）；还原后复绿；③ 覆盖面（全包 or 三包）在 CI 与 `AGENTS.md` 两处口径一致。
+- **⑥ 边界**：只动 CI 与本仓测试；core / agent 各自的 `-race` 门禁归它们自己的单。
+
+### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] ⬜（breaking，需 MAJOR 评审）
+
+- **① 目标**：让「取一个 logger」这件事不依赖包级可变全局，使 core/服务能在测试里注入 writer 与 level，而不是各自绕过 kit。
+- **② 上下文**：KT-05 ③ 当年裁决「文档钉死」并把可注入化推给后单；KT-07 ④ 原文「不改 `Init` 的签名与 `Logger` **包级全局形状**（改成可注入是**另一张单**）」、KT-07 ⑥ 再写「`Logger` 全局的可注入化与 `errors` 包不在本单」——**那张单此前不存在**（本文件 KT-01~KT-11 无对应条目）。KT-07 已把「level 被无条件覆盖成 Debug」修掉，今天的 `Init(level, format)` 语义正确，本单只动**形状**。
+- **③ 要求**：① 先出**决策材料**：注入式 API 的三种候选（返回 `*Logger` / 传 `io.Writer` 参数 / 保留全局但加 `New()` 构造函数）与本仓「移动/改名包即 breaking」的规则如何适用；② 由主任定形状后再改实现；③ 迁移期兼容姿势（保留 `Init` 一个版本周期并标 Deprecated，或一次性 breaking + 下游四仓同批升 pin）在单内定死；④ `docs/SCOPE.md` 的 `logging` 行、`docs/api-schema.md` §1、`README.md` 兼容矩阵、`CHANGELOG.md` 四件套同步；⑤ 下游（core / 六服务）改调用点的单由协调者发，不在本仓。
+- **④ 约束与非目标**：**不改** KT-07 已定死的 level 语义（`parseLevel` 映射与未知值回落 info）；不动脱敏、`WithContext`、writer 选择；不引 zerolog 全局钩子改造；**不在材料未拍板前动导出面**（本仓在依赖图底座，一次改动同时打到 contracts / core / agent 的 CI）。
+- **⑤ 验收**：① 决策材料落档且主任拍板记录在案（这是本单第一道验收，不是可选项）；② 拍板后：`go build/vet/test ./... -count=1` + `check_scope` + `check_release_matrix` 全绿；③ 注入用例：同一进程内两个 logger 各自写到各自 `io.Writer`，断言互不串（旧形状下这条写不出来，可作为「实现不存在时测试必红」的先写证据）；④ 破坏验证：把注入退回全局 ⇒ 该用例红；⑤ 版本纪律：CHANGELOG 的 MAJOR 节 + 兼容矩阵那一行 + `git tag` 三者一致（`check_release_matrix` 核对）。
+- **⑥ 边界**：只做 `logging` 的形状；`errors` 包的同类问题在 KT-05 ⑥ 里被一并押后，若要做请另立单，不与本单混提。
+
+---
+
 ## 施工序（候选单，开工前必须展开成六字段）
 
 > 这张表是**施工顺序**，不是任务台账：每条在执行前要展开成六字段单（目标/上下文/要求/约束/验收/边界），并写明冻结契约的路径与节号。
