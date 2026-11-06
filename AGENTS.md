@@ -14,11 +14,13 @@
 go build ./...
 go vet ./...
 go test ./...
+go test ./... -race -count=1        # 竞态门禁（CI 同款，KT-12）；覆盖面 = 全仓所有包，需 CGO_ENABLED=1
 go run ./tools/check_scope          # 包边界：业务词 / 越界 import / SCOPE.md 未登记包 即红（CI 同款，KT-01 护栏）
 go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGELOG ↔ tag（CI 同款，KT-02 护栏）
 ```
 
-- 前三条是 R1/R2 的判据：**单独 checkout 就能绿**；后两条是本仓的两条随仓护栏（CI 同款步骤）。
+- 前三条是 R1/R2 的判据：**单独 checkout 就能绿**；后三条是本仓的随仓护栏（CI 同款步骤）。
+- **`-race` 的覆盖面与本机限制（KT-12）**：CI 步骤名写作「Test -race（覆盖面：全仓所有包）」，**没有**缩小到 `auth` / `httpserver` / `db` 三包——缩小覆盖面会让读者以为其余包已过竞态检测。`-race` 依赖 cgo，**Windows 无 gcc 时本机跑不动**（`go: -race requires cgo`），这条腿的结论**一律以 CI 输出为准**，不拿本地绿当证据。
 - 若某一步需要别的仓的源码目录才过，那是**边界画错了**——停下来修边界，**不要**加 `replace ../xxx` 绕过。
 - 本机同时改多个仓时可用 `go.work` 联调，但**它不入库**（`.gitignore` 已挡）。
 - **私有化前提**：本仓一旦被设为 private，构建与全部 CI 环境必须配 `GOPRIVATE=github.com/ruoxizhnya/*` **加** git 凭证（PAT / SSH），否则 `go get` 走公共 proxy 必然拉不到（风险注见 `tellurion:docs/design/qt-decoupling/repo-inventory.md` §1.1/§5；现状 12 仓全 public）。本仓在依赖图底座，转私有先红的是 contracts / core / agent 的 CI，不是本仓。细则与发版流程在 `README.md`「拉取前提」「发版流程」。

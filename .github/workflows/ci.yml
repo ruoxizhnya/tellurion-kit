@@ -47,3 +47,11 @@ jobs:
 
       - name: Test
         run: go test ./... -count=1
+
+      # KT-12：并发面的机械判据。`-count=1` 只证明「逻辑对」，证明不了「并发安全」——
+      # httpserver / auth / db / observability 这些包的共享状态一旦被无锁读写，
+      # 上面那步是绿的。覆盖面 = **全仓**（不缩小到三包），理由见 docs/TASKS.md KT-12 ③：
+      # 缩小覆盖面会让读者以为其余包已过竞态检测，那是假账。
+      # 本机 Windows 无 gcc ⇒ 这一步只能在 Linux runner 上取证（CGO_ENABLED=1 是 -race 的前提）。
+      - name: Test -race（覆盖面：全仓所有包）
+        run: go test ./... -race -count=1

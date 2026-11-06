@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-26
-verified-by: A 组三形状包决策材料（2026-10-26：本仓零改动，只在「二、跨仓指针」留一行；三形状均被 `tools/check_scope` 词表机械排除）+ KT-08 结案归档（auth/httpadapter 落码、表驱动用例、破坏验证、v0.1.1 发版账）
+last-verified: 2026-11-07
+verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGENTS.md` §2 同步；本地六门禁 exit 0；破坏验证只取到 `-count=1` 半边，`-race` 红绿待 CI 首跑）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -220,7 +220,7 @@ verified-by: A 组三形状包决策材料（2026-10-26：本仓零改动，只�
 
 ---
 
-### KT-12 · 把 `-race` 真接进 CI（QT-05-B 登记的两条没做腿之一） [P2] ⬜
+### KT-12 · 把 `-race` 真接进 CI（QT-05-B 登记的两条没做腿之一） [P2] 🔶（代码与门禁已落；剩 CI 首跑取证）
 
 - **① 目标**：`httpserver` / `auth` / `db` / `observability` 这类并发面在 CI 里被竞态检测器跑过，而不是只被 `-count=1` 跑过。
 - **② 上下文**：QT-05-B 结案把两条腿明文记成**没做**——「现场破坏验证与 `-race`」（本文件 `:63-65`，正文在 `archive/TASKS-2026-10-22-archived.md`）；实测 `.github/workflows/ci.yml:49` 今天只有 `go test ./... -count=1`，全仓 CI **无 `-race`**；`AGENTS.md` §2 的三条命令也没带它。⇒ 「并发安全」这句话在本仓目前**没有机械判据**。
@@ -228,6 +228,13 @@ verified-by: A 组三形状包决策材料（2026-10-26：本仓零改动，只�
 - **④ 约束与非目标**：不改任何被测代码的语义（本单是测试与 CI 配置）；不为跑绿而放宽断言；不引第三方竞态工具；本机 Windows 无 gcc ⇒ `-race` 需 `CGO_ENABLED=1`，**本机跑不动属预期**，结论一律以 CI 输出为准（如实登记，不拿本地绿当证据）。
 - **⑤ 验收**：① CI 的 `-race` 步骤**真实执行**（step 级看，不是 job 绿——`skipped` 不算过）；② 破坏验证一条：在 `auth` 或 `httpserver` 里临时加一个无锁并发写 map 的用例 ⇒ `-race` 步骤必须红、`-count=1` 步骤必须保持绿（证明这条腿**抓的是别的东西**，不是重复覆盖）；还原后复绿；③ 覆盖面（全包 or 三包）在 CI 与 `AGENTS.md` 两处口径一致。
 - **⑥ 边界**：只动 CI 与本仓测试；core / agent 各自的 `-race` 门禁归它们自己的单。
+
+- **施工记录（2026-11-07）**：
+  - **改动面**（2 文件）：`.github/workflows/ci.yml` 在 `Test` 步骤之后新增步骤 **「Test -race（覆盖面：全仓所有包）」** → `go test ./... -race -count=1`；`AGENTS.md` §2 命令块加同一行（带覆盖面与本机限制注记），并把「后两条是本仓的两条随仓护栏」订正为「后三条」。
+  - **覆盖面口径**：采用**全仓所有包**，不采用 ③ 允许的三包收窄。理由写进 CI 注释与 `AGENTS.md`：收窄会让读者以为其余包已过竞态检测，那是假账。两处口径一致（⑤-③）。
+  - **本地门禁实测**（go1.25.14 windows/amd64，2026-11-07）：`gofmt -l .` 输出空 → exit 0；`go build ./...` → exit 0；`go vet ./...` → exit 0；`go test ./... -count=1` → exit 0（16 包 `ok` / 1 个 `no test files`）；`go run ./tools/check_scope` → exit 0；`go run ./tools/check_release_matrix` → exit 0。
+  - **破坏验证（本地可取证半边）**：临时新增 `auth/zz_kt12_race_probe_test.go`（8 goroutine × 5000 次**无锁** `n++`）。`go test ./auth/ -run TestKT12RaceProbeUnsynchronizedCounter -count=1 -v` → `PASS`，exit 0 ⇒ 证实 `-count=1` **抓不到**这类共享写；同一用例加 `-race` → `go: -race requires cgo; enable cgo by setting CGO_ENABLED=1`，exit 2（`go env CGO_ENABLED` = `0`，本机无 gcc）⇒ 「`-race` 下必红」这半边**本机无法取证**，如实登记。探针文件已逐字节删除，`git status --porcelain` 只剩本单两处改动。
+  - **剩余腿（故记 🔶 非 ✅）**：CI 首跑须 **step 级**确认「Test -race（覆盖面：全仓所有包）」真实执行且绿（`skipped` 不算）；若首跑翻出既有竞态，按 ③ 逐条登记或就地修，**禁止**改名 / `t.Skip` 洗绿。
 
 ### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] ⬜（breaking，需 MAJOR 评审）
 
