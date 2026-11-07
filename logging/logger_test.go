@@ -2,6 +2,8 @@ package logging
 
 import (
 	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -134,6 +136,92 @@ func TestInit_ConsoleFormatStillInitialisesLogger(t *testing.T) {
 	assert.NotPanics(t, func() {
 		Logger.Info().Msg("console path smoke test")
 	})
+}
+
+// ---- New (injectable logger) --------------------------------------------
+
+func TestNew_WritesToInjectedWriter(t *testing.T) {
+	restoreGlobals(t)
+
+	var buf bytes.Buffer
+	injectedLogger := New("info", "json", &buf)
+	injectedLogger.Info().Msg("injected")
+
+	out := buf.String()
+	assert.Contains(t, out, `"level":"info"`)
+	assert.Contains(t, out, `"message":"injected"`)
+	assert.Regexp(t, `"time":"\d{4}-`, out, "record shape must match Init (RFC3339Nano timestamp)")
+	assert.Contains(t, out, `"caller":"`, "record shape must match Init (caller field)")
+}
+
+func TestNew_TwoLoggersWriteToTheirOwnSinks(t *testing.T) {
+	restoreGlobals(t)
+
+	var first, second bytes.Buffer
+	firstLogger := New("info", "json", &first)
+	secondLogger := New("info", "json", &second)
+
+	firstLogger.Info().Msg("record-first")
+	secondLogger.Info().Msg("record-second")
+
+	assert.Contains(t, first.String(), `"message":"record-first"`)
+	assert.NotContains(t, first.String(), `"message":"record-second"`)
+	assert.Contains(t, second.String(), `"message":"record-second"`)
+	assert.NotContains(t, second.String(), `"message":"record-first"`)
+}
+
+func TestNew_LevelIsScopedToTheInstance(t *testing.T) {
+	restoreGlobals(t)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	var quiet, verbose bytes.Buffer
+	quietLogger := New("error", "json", &quiet)
+	verboseLogger := New("debug", "json", &verbose)
+
+	quietLogger.Info().Msg("filtered")
+	verboseLogger.Info().Msg("visible")
+
+	assert.Empty(t, quiet.String(), "an error-level instance must drop info records")
+	assert.Contains(t, verbose.String(), `"message":"visible"`)
+}
+
+func TestNew_DoesNotMutatePackageLogger(t *testing.T) {
+	restoreGlobals(t)
+
+	var global bytes.Buffer
+	Logger = zerolog.New(&global)
+
+	var injected bytes.Buffer
+	injectedLogger := New("info", "json", &injected)
+	injectedLogger.Info().Msg("only-injected")
+
+	assert.Contains(t, injected.String(), `"message":"only-injected"`)
+	assert.Empty(t, global.String(), "New must not write through the package-level Logger")
+}
+
+// TestInit_PackageLoggerThinShellStillWorks pins the compatibility shell:
+// Init still populates and writes through the package-level Logger.
+func TestInit_PackageLoggerThinShellStillWorks(t *testing.T) {
+	restoreGlobals(t)
+
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+
+	prevStdout := os.Stdout
+	os.Stdout = w
+	defer func() {
+		os.Stdout = prevStdout
+		_ = w.Close()
+		_ = r.Close()
+	}()
+
+	Init("info", "json")
+	Logger.Info().Msg("thin-shell")
+
+	require.NoError(t, w.Close())
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+	assert.Contains(t, string(out), `"message":"thin-shell"`)
 }
 
 // ---- WithContext ---------------------------------------------------------

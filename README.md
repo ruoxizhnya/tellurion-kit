@@ -98,6 +98,8 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 
 `v0.1.4`（`KT-11`，裁决 ⑯/§五 ⑬ 方向 3）：修「签得出、验不过」——`auth/httpadapter.Authenticate` 与 `auth.Middleware` 对 **`role=service` 的非数字 subject** 不再判 401，用户 token 的 `int64` 校验原样保留。**这一版含行为变更（对一类输入从 401 变为放行）**，使用方升 pin 不需要改代码，但升之前服务间链路是 401、之后才通。risk / data / analytics 三只 pin 由各自仓记账。
 
+`main` 上已落 `KT-13`（2026-11-07，**未发版**）：`logging` 新增可注入构造 `logging.New(level, format, out)`，包级 `Logger` / `Init` 保留为兼容薄壳并标 `Deprecated`（下一 MAJOR 删除）。按本节规则这是**新增导出符号 = MINOR**，不是 breaking；因为未打 tag，兼容矩阵**不新增行**，下游从 `v0.1.4` 升到含本改动的版本不需要改代码（迁移指引见 [`CHANGELOG.md`](CHANGELOG.md) 的 `[Unreleased]`）。
+
 ## 发版流程
 
 ```bash

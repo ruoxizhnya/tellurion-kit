@@ -236,7 +236,7 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
   - **破坏验证（本地可取证半边）**：临时新增 `auth/zz_kt12_race_probe_test.go`（8 goroutine × 5000 次**无锁** `n++`）。`go test ./auth/ -run TestKT12RaceProbeUnsynchronizedCounter -count=1 -v` → `PASS`，exit 0 ⇒ 证实 `-count=1` **抓不到**这类共享写；同一用例加 `-race` → `go: -race requires cgo; enable cgo by setting CGO_ENABLED=1`，exit 2（`go env CGO_ENABLED` = `0`，本机无 gcc）⇒ 「`-race` 下必红」这半边**本机无法取证**，如实登记。探针文件已逐字节删除，`git status --porcelain` 只剩本单两处改动。
   - **剩余腿（故记 🔶 非 ✅）**：CI 首跑须 **step 级**确认「Test -race（覆盖面：全仓所有包）」真实执行且绿（`skipped` 不算）；若首跑翻出既有竞态，按 ③ 逐条登记或就地修，**禁止**改名 / `t.Skip` 洗绿。
 
-### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] ⬜（breaking，需 MAJOR 评审）
+### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] 🔶（2026-11-07 可注入已落地；版本判定 MINOR 非 MAJOR；剩发版与下游升 pin 验证）
 
 - **① 目标**：让「取一个 logger」这件事不依赖包级可变全局，使 core/服务能在测试里注入 writer 与 level，而不是各自绕过 kit。
 - **② 上下文**：KT-05 ③ 当年裁决「文档钉死」并把可注入化推给后单；KT-07 ④ 原文「不改 `Init` 的签名与 `Logger` **包级全局形状**（改成可注入是**另一张单**）」、KT-07 ⑥ 再写「`Logger` 全局的可注入化与 `errors` 包不在本单」——**那张单此前不存在**（本文件 KT-01~KT-11 无对应条目）。KT-07 已把「level 被无条件覆盖成 Debug」修掉，今天的 `Init(level, format)` 语义正确，本单只动**形状**。
@@ -244,6 +244,15 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
 - **④ 约束与非目标**：**不改** KT-07 已定死的 level 语义（`parseLevel` 映射与未知值回落 info）；不动脱敏、`WithContext`、writer 选择；不引 zerolog 全局钩子改造；**不在材料未拍板前动导出面**（本仓在依赖图底座，一次改动同时打到 contracts / core / agent 的 CI）。
 - **⑤ 验收**：① 决策材料落档且主任拍板记录在案（这是本单第一道验收，不是可选项）；② 拍板后：`go build/vet/test ./... -count=1` + `check_scope` + `check_release_matrix` 全绿；③ 注入用例：同一进程内两个 logger 各自写到各自 `io.Writer`，断言互不串（旧形状下这条写不出来，可作为「实现不存在时测试必红」的先写证据）；④ 破坏验证：把注入退回全局 ⇒ 该用例红；⑤ 版本纪律：CHANGELOG 的 MAJOR 节 + 兼容矩阵那一行 + `git tag` 三者一致（`check_release_matrix` 核对）。
 - **⑥ 边界**：只做 `logging` 的形状；`errors` 包的同类问题在 KT-05 ⑥ 里被一并押后，若要做请另立单，不与本单混提。
+
+- **施工记录（2026-11-07）**：
+  - **① 实测清单（本仓，改动前基线）**：`logging.Logger` 是唯一的包级 logger 全局。**写点 2 处**：`logging/logger.go:12`（声明）、`logging/logger.go:24`（`Init` 赋值）；测试内写 4 处：`logging/logger_test.go:26,146,166,189`。**生产读点 2 处**：`logging/logger.go:29`（`WithContext`）、`httpclient/client.go:38`（`httpclient.New` 构造时快照为默认 logger；`:102,111,122,129,137` 用的是字段不是全局）。**生产调用方**：`logging.Logger` 1 个（`httpclient.New`）；`logging.WithContext` 0 个（仅 3 条测试）；`logging.Init` 本仓 0 个（外部启动期调用）。另记 zerolog 进程级全局：`SetGlobalLevel` 写点 `logging/logger.go:22`（测试 2 处）；`TimeFieldFormat` / `ErrorStackMarshaler` 写点 `logging/logger.go:19-20`。`tools/check_scope/testdata/ok/**` 里的 `logging.Logger` 是夹具自带的同名包，不参与本仓编译。
+  - **② 选定形态与理由**：新增 `logging.New(level, format string, out io.Writer) zerolog.Logger`——返回**实例**，sink 用 `out`、级别用 per-logger `.Level(parseLevel(level))`、格式复用 `newWriter`；**不读也不写**包级 `Logger`、**不调** `zerolog.SetGlobalLevel`（`TimeFieldFormat` / `ErrorStackMarshaler` 是与 `Init` 共用的进程级**格式常量**，为保持记录形状一致而同样设置）。保留 `Logger` + `Init` 作为**兼容薄壳**并标 `Deprecated`，写明**下一 MAJOR（v1.0.0）删除**。理由：彻底移除要同时改本仓 `httpclient.New` 与仓外 core/服务的调用点（外部面在本仓不可闭环），且 KT-07 刚修好 `Init` 的级别语义；薄壳 + 新增没有「下游必改项」，破坏面最小且不撒谎。`Init` 函数体**逐字未动** ⇒ 级别过滤 / 字段 / 格式 / sink 行为逐字节不变。
+  - **③ 测试**（`logging/logger_test.go`）：`TestNew_WritesToInjectedWriter`（写入传入 writer，且记录形状含 `time` / `caller`）、`TestNew_TwoLoggersWriteToTheirOwnSinks`（同进程两个 logger 各写各的、互不串）、`TestNew_LevelIsScopedToTheInstance`（error / debug 实例各自过滤）、`TestNew_DoesNotMutatePackageLogger`（新入口不写包级全局）、`TestInit_PackageLoggerThinShellStillWorks`（`os.Pipe` 捕获 `Init` 后的 `Logger` 输出，证明薄壳仍工作）。
+  - **④ 版本判定**：**MINOR，不是 MAJOR**。依据 README「版本规则」：新增导出符号 = MINOR；`Deprecated` 只是注释级标注，不删符号、不改签名与语义。因此没有 MAJOR 节、本轮不打 tag、兼容矩阵不新增行（未发版）。**迁移指引（下游）**：`logging.Init(level, format)` + `logging.Logger` → `logger := logging.New(level, format, os.Stdout)` 并把 `logger` 显式传给组件；`WithContext` 仍是全局读点，迁移期保留，下一 MAJOR 随薄壳一并处置。落点：`CHANGELOG.md` `[Unreleased]`、`docs/SCOPE.md` §3 `logging` 行、`docs/api-schema.md` §1、`README.md` 兼容矩阵节末段。**下游升级验证：未执行**（本轮不 push、不发版）。
+  - **⑤ 破坏验证（本地真退出码，go1.25.14 windows/amd64）**：把 `New` 改成 `_ = level; _ = format; _ = out; return Logger`（忽略传入、退回包级全局）⇒ `go test ./logging/ -run 'TestNew_' -count=1` **4 条全红、exit=1**（首条报 `"" does not contain "\"message\":\"injected\""`）；逐字节还原后 `logging/logger.go` SHA256 前后同为 `28E9ABDDE2706D0C69146CCBCD9173B153E65D4E07DB1FE80DC9E3773C49F25C`，同一命令 **exit=0**。
+  - **⑥ 本地门禁实测（同一命令批次）**：`gofmt -l .` 无输出 → **exit 0**；`go build ./...` → **exit 0**；`go vet ./...` → **exit 0**；`go test ./... -count=1` → **exit 0**（16 包 `ok` / 1 个 `no test files`）；`go run ./tools/check_scope` → **exit 0**；`go run ./tools/check_release_matrix` → **exit 0**。
+  - **未执行腿（故记 🔶 非 ✅）**：KT-13 ⑤-⑤ 的 `git tag` / `git push`；下游 core / 六服务升 pin 后的编译与行为验证（不在本仓，属协调者发单）；跨仓调用点清单同上。`errors` 包同类问题仍按 ⑥ 另立单。
 
 ---
 

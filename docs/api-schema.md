@@ -18,7 +18,7 @@ verified-by: KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogRe
 
 | 包 | 提供什么 | 典型用途 | 实现状态 |
 |---|---|---|---|
-| `logging` | 结构化日志、级别、字段约定、**敏感字段脱敏**（`masking.go`） | 全仓统一日志形状 | ✅ 已落地（QT-05-B，2026-10-22）；**`Init` 只能在启动期调一次**——它同时写包级 `Logger` 与 zerolog 全局级别，测试不得并发调（KT-05 ③ 裁决）；`level` 参数真正决定全局级别（KT-07 修复，2026-10-23；未知值回落 info） |
+| `logging` | 结构化日志、级别、字段约定、**敏感字段脱敏**（`masking.go`）、**可注入构造 `New(level, format, out)`**（writer 与级别由调用方持有） | 全仓统一日志形状 | ✅ 已落地（QT-05-B，2026-10-22）；**`Init` 只能在启动期调一次**——它同时写包级 `Logger` 与 zerolog 全局级别，测试不得并发调（KT-05 ③ 裁决）；`level` 参数真正决定全局级别（KT-07 修复，2026-10-23；未知值回落 info）；KT-13（2026-11-07）新增 `New`，包级 `Logger` / `Init` 保留为兼容薄壳并标 `Deprecated`（下一 MAJOR 删除） |
 | `errors` | 分类错误 `AppError`（9 个 `ErrCode*`）+ 包装（保留 `%w`）+ 堆栈 | 与 contracts 的三类哨兵配合 | ✅ 已落地（同上） |
 | `id` | 与域无关的 ID：`JobID` / `SubscriptionID` | job_id / 订阅 id | ✅ 已落地；**`OrderID` 不在本仓**（交易域，SCOPE §5 #1）；UUIDv7 生成器是包内机制，**未导出通用入口** |
 | `decimal` | 定点小数（scale ≤ 18、`Round(scale)`、`Div(a, b, resultScale)`） | 价格与金额（禁止 float 做钱） | ✅ 已落地；`Div` 的舍入口径：**四舍五入（half away from zero）**——余数超过**或恰好等于**半个单位都向远离零进位，与 `Round` 同口径（KT-03 ② 裁决，2026-10-23）。`resultScale` 小于被除数 scale 时定标走**分母侧**（被除数低位数字活到舍入步，`2.5 / 1` 在 scale 0 答 `3`）；任何定标步越界返回 `ErrOverflow`，不静默截断也不静默跳乘（KT-06，2026-10-23）。按 README，舍入口径属 MAJOR 语义 |

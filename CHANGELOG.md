@@ -8,6 +8,25 @@
 
 ## [Unreleased]
 
+### 新增（MINOR 级：`logging` 可注入 logger）
+
+- **KT-13**（2026-11-07）：新增 `logging.New(level, format string, out io.Writer) zerolog.Logger`——返回独立实例：
+  writer 由 `out` 决定、级别用 per-logger `.Level(parseLevel(level))`、格式复用 `newWriter`（`console` 之外仍是原始 JSON），
+  **不读也不写**包级 `Logger`、**不调** `zerolog.SetGlobalLevel`。同一进程内两个 logger 可以各写各的 sink、各自过滤。
+  - **版本判定：MINOR（非 breaking / 非 MAJOR）**。依据 README「版本规则」：新增导出符号 = MINOR；`Deprecated` 是注释级标注，
+    不删符号、不改签名与语义。因此没有 MAJOR 节；本轮**未打 tag、未 push**，兼容矩阵不新增行（`v0.1` 序列的已有行不受影响）。
+  - **破坏性：无**。`Init(level, format)` 与包级 `Logger` 一字未动，旧调用点不升级也能继续编译，级别过滤 / 字段 / 格式 / sink 行为逐字节不变。
+  - **迁移指引（下游，可选）**：把 `logging.Init(level, format)` + `logging.Logger` 改为
+    `logger := logging.New(level, format, os.Stdout)`，并把 `logger` 显式传给需要日志的组件；
+    测试里可把它指向 `io.Writer`（例如 `bytes.Buffer`）以断言输出，无需再动进程全局。`logging.WithContext` 仍读包级全局，迁移期保留。
+  - **下一 MAJOR（v1.0.0）**：删除 `Logger` / `Init` 薄壳，并处置 `WithContext` 的全局读点（改为实例方法或另立替身）——
+    届时下游必须改用 `New`。
+  - 判据：`logging/logger_test.go` 的 `TestNew_WritesToInjectedWriter` / `TestNew_TwoLoggersWriteToTheirOwnSinks` /
+    `TestNew_LevelIsScopedToTheInstance` / `TestNew_DoesNotMutatePackageLogger` / `TestInit_PackageLoggerThinShellStillWorks`。
+    破坏验证：把 `New` 改成忽略入参并 `return Logger` ⇒ 4 条用例红（exit=1）；逐字节还原（`logging/logger.go` SHA256
+    `28E9ABDDE2706D0C69146CCBCD9173B153E65D4E07DB1FE80DC9E3773C49F25C`）后复绿（exit=0）。
+  - **下游升级验证：未执行**（本轮不 push、不发版；core / 六服务的升 pin 与调用点改造由协调者另发单）。
+
 ## [v0.1.4] - 2026-10-25
 
 ### 修复（MINOR 级：service token 的 subject 校验分流）

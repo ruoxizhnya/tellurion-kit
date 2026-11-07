@@ -61,7 +61,7 @@ verified-by: KT-09 / KT-10 落地（§3 `auth` / `statistics` / `httpserver` 行
 <!-- scope:begin -->
 | 包 | 准入（收什么） | 禁入（不许收什么） | kit 内允许依赖 | core 现状出处 |
 |---|---|---|---|---|
-| `logging` | logger 形状、级别、context 注入、敏感值脱敏（API key / 账号 / 通用串） | 业务埋点指标（「回测耗时」「LLM token 数」这类计数属于 observability 的使用方各自定义）；任何 core 类型进字段 | — | `pkg/logging`（`logger.go` `MaskAPIKey` 等 8 个导出，零内部依赖 ✅） |
+| `logging` | logger 形状、级别、context 注入、敏感值脱敏（API key / 账号 / 通用串）、**可注入构造 `New(level, format, out)`**（writer 与级别由调用方持有） | 业务埋点指标（「回测耗时」「LLM token 数」这类计数属于 observability 的使用方各自定义）；任何 core 类型进字段 | — | `pkg/logging`（`logger.go` `MaskAPIKey` 等 8 个导出，零内部依赖 ✅）；包级 `Logger` / `Init` 是兼容薄壳（`Deprecated`，下一 MAJOR 删除，KT-13） |
 | `errors` | 错误包装（`Wrap`/`Wrapf`）、分类码（internal / invalid input / not found / conflict / unavailable / timeout）、`errors.Is` 友好形状 | **业务错误码语义**（`ErrFillTimingMismatch` 这类具体判定属 contracts/core）；把某类业务失败降格成通用码 | — | `pkg/errors`（9 个 `ErrCode*`，stdlib-only ✅；`ErrCodeDataQuality` 是边缘名，见 §5 偏差 #6） |
 | `id` | 与域无关的 ID 类型与生成器（UUIDv7、job id、订阅 id） | **交易对象 ID**（`OrderID` 这类：它的存在就意味着订单域进了底座）；带业务前缀的编码规则 | — | `pkg/id/order.go`（`OrderID`/`JobID`/`SubscriptionID`）——`OrderID` 命中词表，见 §5 偏差 #1 |
 | `decimal` | 定点数运算、舍入模式、精度与 scale、JSON 编解码 | **费率模型 / 价格档位 / 单位换算规则**（`fees` 留 core）；任何「按 A 股规则取整」的语义 | — | `pkg/decimal`（`Decimal` + 12 个构造/运算，stdlib-only ✅，最干净的候选） |
