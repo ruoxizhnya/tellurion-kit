@@ -238,7 +238,7 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
   - **剩余腿（故记 🔶 非 ✅）**：CI 首跑须 **step 级**确认「Test -race（覆盖面：全仓所有包）」真实执行且绿（`skipped` 不算）；若首跑翻出既有竞态，按 ③ 逐条登记或就地修，**禁止**改名 / `t.Skip` 洗绿。
   - **CI 首跑取证（2026-11-10，主任授权 push）**：`main` 推 `d9a5c81`（6 笔，含 `721faf2` 的 `-race` 步骤）⇒ run **`42788116604`**（[actions/runs/42788116604](https://github.com/ruoxizhnya/tellurion-kit/actions/runs/42788116604)，job `Build & Test` `129734369424`）。**step 级原文**：`Test -race（覆盖面：全仓所有包）` = `success`（非 `skipped`），job 总时长 **2m7s**、结论 `success`；同 job 的 `gofmt` / `Build` / `Vet` / 包边界 / 版本纪律 / `Test` 六步亦全 `success`。⇒ ⑤① 达成；⑤② 已由 2026-11-10 的 Docker 探针腿取证（`-count=1` 绿 / `-race` 红、探针已删）；⑤③ 两处口径同为「全仓所有包」。**本单转 ✅。**
 
-### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] 🔶（2026-11-07 可注入已落地；版本判定 MINOR 非 MAJOR；剩发版与下游升 pin 验证）
+### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] ✅（2026-11-10：`v0.2.0` 已发版并 push tag，七仓升 pin 实测完成）
 
 - **① 目标**：让「取一个 logger」这件事不依赖包级可变全局，使 core/服务能在测试里注入 writer 与 level，而不是各自绕过 kit。
 - **② 上下文**：KT-05 ③ 当年裁决「文档钉死」并把可注入化推给后单；KT-07 ④ 原文「不改 `Init` 的签名与 `Logger` **包级全局形状**（改成可注入是**另一张单**）」、KT-07 ⑥ 再写「`Logger` 全局的可注入化与 `errors` 包不在本单」——**那张单此前不存在**（本文件 KT-01~KT-11 无对应条目）。KT-07 已把「level 被无条件覆盖成 Debug」修掉，今天的 `Init(level, format)` 语义正确，本单只动**形状**。
@@ -255,6 +255,11 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
   - **⑤ 破坏验证（本地真退出码，go1.25.14 windows/amd64）**：把 `New` 改成 `_ = level; _ = format; _ = out; return Logger`（忽略传入、退回包级全局）⇒ `go test ./logging/ -run 'TestNew_' -count=1` **4 条全红、exit=1**（首条报 `"" does not contain "\"message\":\"injected\""`）；逐字节还原后 `logging/logger.go` SHA256 前后同为 `28E9ABDDE2706D0C69146CCBCD9173B153E65D4E07DB1FE80DC9E3773C49F25C`，同一命令 **exit=0**。
   - **⑥ 本地门禁实测（同一命令批次）**：`gofmt -l .` 无输出 → **exit 0**；`go build ./...` → **exit 0**；`go vet ./...` → **exit 0**；`go test ./... -count=1` → **exit 0**（16 包 `ok` / 1 个 `no test files`）；`go run ./tools/check_scope` → **exit 0**；`go run ./tools/check_release_matrix` → **exit 0**。
   - **未执行腿（故记 🔶 非 ✅）**：KT-13 ⑤-⑤ 的 `git tag` / `git push`；下游 core / 六服务升 pin 后的编译与行为验证（不在本仓，属协调者发单）；跨仓调用点清单同上。`errors` 包同类问题仍按 ⑥ 另立单。
+  - **⑦ 发版与下游升 pin（2026-11-10，主任授权 push + tag）**：
+    - **发版**：`eedeedb` 移入 `CHANGELOG [v0.2.0] - 2026-11-10`、README 兼容矩阵新增 `v0.2` 行并补发版段；本地门禁 `gofmt -l .` 空、`go build/vet/test ./... -count=1` 全 0、`check_scope` = 0、`check_release_matrix` = 0（三件套对拍通过）；附注 tag `v0.2.0`（annotated）并 **push**（远端 `refs/tags/v0.2.0 = e3b797c5…`，指向发版提交）。
+    - **下游升 pin（七仓，全部 `go get …@v0.2.0`）**：`tellurion`（`65881a6`）、`tellurion-agent`（`7f35517`）、`tellurion-analytics`（`d1be9c9`）、`tellurion-data`（`841ab2d`）、`tellurion-orchestration`（`8acc31b`）、`tellurion-risk`（`9d204d2`）、`tellurion-strategy`（`47193cc`）。**实测**：七仓 `go build ./...` / `go vet ./...` 全 **EXIT=0**；analytics / data / orchestration / risk / strategy 五仓 `go test ./... -count=1` 全 **EXIT=0**；core 全量 `go test ./... -count=1` **EXIT=0**（`pkg/backtest 10.8s` 等全 ok）。
+    - **agent 的两条红不是升 pin 引入**：`pkg/ai/client` 的 openapi 对拍红（`/api/v1/trading-calendar`、`/api/v1/listing-windows` 未被 core openapi 登记）。已在 agent `docs/TASKS.md:508` 登记为 **QT-17 ③ 待另立单**的既有红；本轮把 `go.mod/go.sum` stash 回 `v0.1.4` 复跑同包 ⇒ **同样两条红**，升回 `v0.2.0` 后不变，证明与 kit 版本无关。
+    - **结论**：⑤-⑤ 三件套一致 + 下游编译/行为验证完成 ⇒ 本单转 ✅；`未执行腿` 里的 tag/push 与下游验证两腿至此结清，`errors` 包仍按 ⑥ 另立单。
 
 ---
 
@@ -273,6 +278,7 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
 | S2.6 | ✅ `IssueServiceToken` 服务账号签发，打 `v0.1.2`（裁-17）（2026-10-25 完成，正文见 KT-09） | `KT-09` | core QT-71 开工前 |
 | S3（二期） | ✅ 补 `LogReturns` / `AnnualizeVolatility` / `IsLoopbackRemoteAddr`（`LoopbackOnly` 留 core），打 `v0.1.3`（裁-18）（2026-10-25 完成，正文见 KT-10） | `KT-10` | core 二期切包前；不与一期混发 |
 | S2.7 | ✅ 修 `service` token 的 subject 被 `int64` 守卫拒成 401（方向 3），打 `v0.1.4`（2026-10-25 完成，正文见 KT-11 结案） | `KT-11` | risk / data / analytics **已同日升 pin**（各仓 CI 绿） |
+| S2.8 | ✅ 发版 `v0.2.0`（`logging.New` 可注入）并 push tag；core / agent / analytics / data / orchestration / risk / strategy 七仓同日升 pin 实测（2026-11-10 完成，正文见 KT-13 ⑦） | `KT-13` | KT-12 CI 取证后 |
 
 ## 二、跨仓指针（不在本仓，勿双写）
 
