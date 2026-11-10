@@ -220,7 +220,7 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
 
 ---
 
-### KT-12 · 把 `-race` 真接进 CI（QT-05-B 登记的两条没做腿之一） [P2] 🔶（代码与门禁已落；剩 CI 首跑取证）
+### KT-12 · 把 `-race` 真接进 CI（QT-05-B 登记的两条没做腿之一） [P2] ✅（2026-11-10：CI 首跑 `Test -race（覆盖面：全仓所有包）` step 级绿，run `42788116604`）
 
 - **① 目标**：`httpserver` / `auth` / `db` / `observability` 这类并发面在 CI 里被竞态检测器跑过，而不是只被 `-count=1` 跑过。
 - **② 上下文**：QT-05-B 结案把两条腿明文记成**没做**——「现场破坏验证与 `-race`」（本文件 `:63-65`，正文在 `archive/TASKS-2026-10-22-archived.md`）；实测 `.github/workflows/ci.yml:49` 今天只有 `go test ./... -count=1`，全仓 CI **无 `-race`**；`AGENTS.md` §2 的三条命令也没带它。⇒ 「并发安全」这句话在本仓目前**没有机械判据**。
@@ -236,6 +236,7 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
   - **破坏验证（本地可取证半边）**：临时新增 `auth/zz_kt12_race_probe_test.go`（8 goroutine × 5000 次**无锁** `n++`）。`go test ./auth/ -run TestKT12RaceProbeUnsynchronizedCounter -count=1 -v` → `PASS`，exit 0 ⇒ 证实 `-count=1` **抓不到**这类共享写；同一用例加 `-race` → `go: -race requires cgo; enable cgo by setting CGO_ENABLED=1`，exit 2（`go env CGO_ENABLED` = `0`，本机无 gcc）⇒ 「`-race` 下必红」这半边本机原生无法取证；**2026-11-10 已用 Docker（CGO）补齐，见下条**。探针文件已逐字节删除，`git status --porcelain` 为空。
   - **`-race` 红绿腿补齐（2026-11-10，Docker + CGO）**：本机无 C 编译器，改用 `golang:1.25` 镜像挂载本仓、`CGO_ENABLED=1`。① 全量：`go test ./... -race -count=1` → **EXIT=0**，17 个包 `ok`（`auth 7.088s`、`httpclient 16.077s` 等），无 `DATA RACE`。② 破坏探针（8 goroutine × 5000 次无锁 `n++`）：`-count=1` → `ok ... 0.006s`，**NO_RACE_EXIT=0**；同用例 `-race` → `WARNING: DATA RACE`、`--- FAIL ... race detected during execution of test`，**RACE_EXIT=1**。③ 探针文件已删除，`git status --porcelain` 为空。⇒ ⑤② 达成；⑤①（CI step 级首跑）仍缺，故本单维持 🔶。
   - **剩余腿（故记 🔶 非 ✅）**：CI 首跑须 **step 级**确认「Test -race（覆盖面：全仓所有包）」真实执行且绿（`skipped` 不算）；若首跑翻出既有竞态，按 ③ 逐条登记或就地修，**禁止**改名 / `t.Skip` 洗绿。
+  - **CI 首跑取证（2026-11-10，主任授权 push）**：`main` 推 `d9a5c81`（6 笔，含 `721faf2` 的 `-race` 步骤）⇒ run **`42788116604`**（[actions/runs/42788116604](https://github.com/ruoxizhnya/tellurion-kit/actions/runs/42788116604)，job `Build & Test` `129734369424`）。**step 级原文**：`Test -race（覆盖面：全仓所有包）` = `success`（非 `skipped`），job 总时长 **2m7s**、结论 `success`；同 job 的 `gofmt` / `Build` / `Vet` / 包边界 / 版本纪律 / `Test` 六步亦全 `success`。⇒ ⑤① 达成；⑤② 已由 2026-11-10 的 Docker 探针腿取证（`-count=1` 绿 / `-race` 红、探针已删）；⑤③ 两处口径同为「全仓所有包」。**本单转 ✅。**
 
 ### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] 🔶（2026-11-07 可注入已落地；版本判定 MINOR 非 MAJOR；剩发版与下游升 pin 验证）
 

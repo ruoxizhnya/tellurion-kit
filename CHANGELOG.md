@@ -8,13 +8,17 @@
 
 ## [Unreleased]
 
+（暂无）
+
+## [v0.2.0] - 2026-11-10
+
 ### 新增（MINOR 级：`logging` 可注入 logger）
 
 - **KT-13**（2026-11-07）：新增 `logging.New(level, format string, out io.Writer) zerolog.Logger`——返回独立实例：
   writer 由 `out` 决定、级别用 per-logger `.Level(parseLevel(level))`、格式复用 `newWriter`（`console` 之外仍是原始 JSON），
   **不读也不写**包级 `Logger`、**不调** `zerolog.SetGlobalLevel`。同一进程内两个 logger 可以各写各的 sink、各自过滤。
   - **版本判定：MINOR（非 breaking / 非 MAJOR）**。依据 README「版本规则」：新增导出符号 = MINOR；`Deprecated` 是注释级标注，
-    不删符号、不改签名与语义。因此没有 MAJOR 节；本轮**未打 tag、未 push**，兼容矩阵不新增行（`v0.1` 序列的已有行不受影响）。
+    不删符号、不改签名与语义。因此没有 MAJOR 节；**2026-11-10 已按 MINOR 发版 `v0.2.0`**（tag 在 `main` 上并 push），兼容矩阵新增 `v0.2` 行。
   - **破坏性：无**。`Init(level, format)` 与包级 `Logger` 一字未动，旧调用点不升级也能继续编译，级别过滤 / 字段 / 格式 / sink 行为逐字节不变。
   - **迁移指引（下游，可选）**：把 `logging.Init(level, format)` + `logging.Logger` 改为
     `logger := logging.New(level, format, os.Stdout)`，并把 `logger` 显式传给需要日志的组件；
