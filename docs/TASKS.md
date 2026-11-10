@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-11-07
-verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGENTS.md` §2 同步；本地六门禁 exit 0；破坏验证只取到 `-count=1` 半边，`-race` 红绿待 CI 首跑）
+last-verified: 2026-11-10
+verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGENTS.md` §2 同步；本地六门禁 exit 0；破坏验证 2026-11-10 已用 Docker（CGO）补齐全红全绿，`-race` 步骤真实执行仍待 CI 首跑）
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -233,7 +233,8 @@ verified-by: KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGE
   - **改动面**（2 文件）：`.github/workflows/ci.yml` 在 `Test` 步骤之后新增步骤 **「Test -race（覆盖面：全仓所有包）」** → `go test ./... -race -count=1`；`AGENTS.md` §2 命令块加同一行（带覆盖面与本机限制注记），并把「后两条是本仓的两条随仓护栏」订正为「后三条」。
   - **覆盖面口径**：采用**全仓所有包**，不采用 ③ 允许的三包收窄。理由写进 CI 注释与 `AGENTS.md`：收窄会让读者以为其余包已过竞态检测，那是假账。两处口径一致（⑤-③）。
   - **本地门禁实测**（go1.25.14 windows/amd64，2026-11-07）：`gofmt -l .` 输出空 → exit 0；`go build ./...` → exit 0；`go vet ./...` → exit 0；`go test ./... -count=1` → exit 0（16 包 `ok` / 1 个 `no test files`）；`go run ./tools/check_scope` → exit 0；`go run ./tools/check_release_matrix` → exit 0。
-  - **破坏验证（本地可取证半边）**：临时新增 `auth/zz_kt12_race_probe_test.go`（8 goroutine × 5000 次**无锁** `n++`）。`go test ./auth/ -run TestKT12RaceProbeUnsynchronizedCounter -count=1 -v` → `PASS`，exit 0 ⇒ 证实 `-count=1` **抓不到**这类共享写；同一用例加 `-race` → `go: -race requires cgo; enable cgo by setting CGO_ENABLED=1`，exit 2（`go env CGO_ENABLED` = `0`，本机无 gcc）⇒ 「`-race` 下必红」这半边**本机无法取证**，如实登记。探针文件已逐字节删除，`git status --porcelain` 只剩本单两处改动。
+  - **破坏验证（本地可取证半边）**：临时新增 `auth/zz_kt12_race_probe_test.go`（8 goroutine × 5000 次**无锁** `n++`）。`go test ./auth/ -run TestKT12RaceProbeUnsynchronizedCounter -count=1 -v` → `PASS`，exit 0 ⇒ 证实 `-count=1` **抓不到**这类共享写；同一用例加 `-race` → `go: -race requires cgo; enable cgo by setting CGO_ENABLED=1`，exit 2（`go env CGO_ENABLED` = `0`，本机无 gcc）⇒ 「`-race` 下必红」这半边本机原生无法取证；**2026-11-10 已用 Docker（CGO）补齐，见下条**。探针文件已逐字节删除，`git status --porcelain` 为空。
+  - **`-race` 红绿腿补齐（2026-11-10，Docker + CGO）**：本机无 C 编译器，改用 `golang:1.25` 镜像挂载本仓、`CGO_ENABLED=1`。① 全量：`go test ./... -race -count=1` → **EXIT=0**，17 个包 `ok`（`auth 7.088s`、`httpclient 16.077s` 等），无 `DATA RACE`。② 破坏探针（8 goroutine × 5000 次无锁 `n++`）：`-count=1` → `ok ... 0.006s`，**NO_RACE_EXIT=0**；同用例 `-race` → `WARNING: DATA RACE`、`--- FAIL ... race detected during execution of test`，**RACE_EXIT=1**。③ 探针文件已删除，`git status --porcelain` 为空。⇒ ⑤② 达成；⑤①（CI step 级首跑）仍缺，故本单维持 🔶。
   - **剩余腿（故记 🔶 非 ✅）**：CI 首跑须 **step 级**确认「Test -race（覆盖面：全仓所有包）」真实执行且绿（`skipped` 不算）；若首跑翻出既有竞态，按 ③ 逐条登记或就地修，**禁止**改名 / `t.Skip` 洗绿。
 
 ### KT-13 · `logging.Logger` 的包级全局改成可注入（KT-05 ③ / KT-07 ④ 押后的「另一张单」） [P2] 🔶（2026-11-07 可注入已落地；版本判定 MINOR 非 MAJOR；剩发版与下游升 pin 验证）
