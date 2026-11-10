@@ -92,6 +92,20 @@ func Failf(c *gin.Context, status int, format string, args ...any) {
 	writeError(c, status, codeForStatus(status), fmt.Sprintf(format, args...), nil)
 }
 
+// FailCode 回一个**调用点指定错误码**的错误响应。
+//
+// 适用场景：`code` 本身就是对外契约的取值（调用方按它分支），而不是
+// 状态码的机械派生。例：core 读面的 `run_not_found` /
+// `run_result_incomplete` / `run_result_failed` —— 三者都要与 analytics
+// 既有三态**同名**，`codeForStatus` 派生不出这种粒度。
+//
+// 纪律：`code` 不是自由文案。只允许写入**已裁决的契约取值**；临时错误
+// 一律走 Fail / Failf / Error / Wrap / FailCause。5xx 仍走通用文案，
+// 内部细节只进日志（与 FailCause 同口径）。
+func FailCode(c *gin.Context, status int, code, message string) {
+	writeError(c, status, code, message, nil)
+}
+
 // Error 把一个 error 转成错误响应。
 //
 // 分水岭在 5xx：4xx 的 err 文案本来就是给用户看的（"参数不对"这类），

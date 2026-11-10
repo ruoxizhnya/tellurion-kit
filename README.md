@@ -84,7 +84,8 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
-| `v0.2` | 已发版（`v0.2.0` 2026-11-10 新增 `logging.New(level, format, out)` 可注入 logger；旧 `logging.Logger` / `Init` 保留为 `Deprecated` 薄壳，下一 MAJOR 删除） | 尚无 require | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
+| `v0.3` | 已发版（`v0.3.0` 2026-11-10 新增 `httpserver.FailCode` 调用点指定错误码；只增不改） | 尚无 require | 已 require `v0.3.0`（2026-11-10 升 pin 实测 `go.mod`） | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
+| `v0.2` | 已发版（`v0.2.0` 2026-11-10 新增 `logging.New(level, format, out)` 可注入 logger；旧 `logging.Logger` / `Init` 保留为 `Deprecated` 薄壳，下一 MAJOR 删除） | 尚无 require | 曾被 `v0.2.0` 使用（2026-11-10），已随 `v0.3.0` 前滚 | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
 | `v0.1` | 已发版（`v0.1.0` 2026-10-23 首个版本；`v0.1.1` 2026-10-25 新增 `auth/httpadapter` 子包；`v0.1.2` 2026-10-25 新增 `auth.IssueServiceToken`；`v0.1.3` 2026-10-25 新增 `statistics.LogReturns` / `AnnualizeVolatility` 与 `httpserver.IsLoopbackRemoteAddr`；`v0.1.4` 2026-10-25 修 `service` token 的 subject 校验）；13 包 + `auth/httpadapter`（QT-05-B / KT-08 / KT-09 / KT-10 / KT-11） | 尚无 require（QT-05 contracts 腿落码后接入） | 已 require `v0.1.1`（QT-73 一期切 `errors` / `decimal` / `clock` / `logging` / `httpclient` 五包，2026-10-25 实测 `go.mod`） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
 | `main`（未发版） | 开发基线，**不做兼容承诺** | 已发版 `v0.1.0` | 已发版 `v0.1.0` | 已发版 `v0.1.0` |
 <!-- matrix:end -->

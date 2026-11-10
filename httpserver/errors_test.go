@@ -51,6 +51,24 @@ func TestFail_KeepsErrorField(t *testing.T) {
 	}
 }
 
+// FailCode 用于 code 本身是对外契约取值的场景：状态码与 code 不再一一派生。
+func TestFailCode_UsesCallerSuppliedCode(t *testing.T) {
+	t.Parallel()
+	w := newRecorder(t, func(c *gin.Context) {
+		FailCode(c, http.StatusConflict, "run_result_incomplete", "run is not finished yet")
+	})
+	if w.Code != http.StatusConflict {
+		t.Fatalf("状态码应为 409，实际 %d", w.Code)
+	}
+	got := bodyOf(t, w)
+	if got["code"] != "run_result_incomplete" {
+		t.Fatalf("code 应保留调用点指定值，实际 %v", got["code"])
+	}
+	if got["error"] != "run is not finished yet" {
+		t.Fatalf("error 字段应保持原样，实际 %v", got["error"])
+	}
+}
+
 // 这一条是 P1-5 真正的价值：**5xx 不再把内部错误原文吐给客户端**。
 // 之前是 300 多处 `gin.H{"error": err.Error()}`，DB 报错、连接串都出去了。
 func TestError_MasksInternalDetails(t *testing.T) {

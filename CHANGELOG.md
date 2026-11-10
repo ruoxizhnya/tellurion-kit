@@ -10,6 +10,22 @@
 
 （暂无）
 
+## [v0.3.0] - 2026-11-10
+
+### 新增（MINOR 级：`httpserver.FailCode` 指定错误码）
+
+- **K4 前置**（2026-11-10，裁决 ⑲ / 跨仓派工 K4）：新增
+  `httpserver.FailCode(c *gin.Context, status int, code, message string)`——
+  与 `Fail` 同形，但 `code` 由调用点给出，不按状态码派生。用途是「`code` 本身
+  是契约取值」的少数场景：core 读面的 `run_not_found` / `run_result_incomplete` /
+  `run_result_failed` 必须与 analytics 既有三态同名，`codeForStatus` 派生不出这个粒度。
+  - **版本判定：MINOR（新增导出符号，非 breaking）**。`Fail` / `Failf` / `Error` /
+    `Wrap` / `FailCause` / `ErrorMiddleware` 的签名与行为一字未动。
+  - **破坏性：无**。旧调用点不升 pin 也能继续编译与运行。
+  - 判据：`httpserver/errors_test.go` 的 `TestFailCode_UsesCallerSuppliedCode`。
+  - 使用边界已写进 `docs/api-schema.md` §2：只允许写**已裁决的契约取值**，
+    不得当作自由文案出口。
+
 ## [v0.2.0] - 2026-11-10
 
 ### 新增（MINOR 级：`logging` 可注入 logger）

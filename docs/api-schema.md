@@ -55,6 +55,9 @@ verified-by: KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogRe
 
   ⚠️ 一处已知不对称（`httpserver/errors.go` 内注释在案）：`codeForStatus` 没有 504 分支，
   所以 TIMEOUT → 504 的响应体里 `code` 落到默认的 `"internal"`。修它要动 `code` 的取值集合 = 对外契约变更，须单独裁决。
+- **调用点指定错误码**用 `httpserver.FailCode(c, status, code, message)`（v0.3.0 起）。`code` 只能写**已裁决的契约取值**
+  （例：core 读面的 `run_not_found` / `run_result_incomplete` / `run_result_failed`，与 analytics 既有三态同名），
+  不是自由文案；其余场景仍走 `Fail` / `Failf` / `Error` / `Wrap` / `FailCause`。5xx 仍走通用文案 + 原文只进日志。
 - 重试只由 `httpclient` 决定，调用方不自己写重试循环。
 - **鉴权 fail-closed**：`authz.Middleware` 遇到「变更方法（POST/PUT/PATCH/DELETE）但策略表里没有这一条」时回 **403 并点名该路由**，
   不静默放行；读方法（GET/HEAD/OPTIONS/TRACE）不经策略表。鉴权整体关闭（`Authenticator.Enabled() == false`）时中间件 no-op —— 那是 dev/CI 的 open-access 模式，不是漏洞。
