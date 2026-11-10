@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-20
-verified-by: 功能边界固化（三份契约：db / api / dataflow）
+last-verified: 2026-11-11
+verified-by: 代码-文档对齐审计（2026-11-11：启动时序改为实测 API `db.BuildDSN` / `db.Connect` / `db.Migrate`，原写不存在的 `db.Open` 与 `migrations/*.sql`）；功能边界固化（三份契约：db / api / dataflow）
 ---
 
 # Dataflow — tellurion-kit
@@ -21,8 +21,8 @@ verified-by: 功能边界固化（三份契约：db / api / dataflow）
 
 ## 2. 关键时序
 
-1. 服务启动：`db.Open(dsn, ...)` → 连接池
-2. 服务自己跑 `migrations/*.sql`（kit 只执行，不提供内容）
+1. 服务启动：`db.BuildDSN(...)` → `db.Connect(ctx, dsn, opts)` → 连接池（`db.ConnectRedis` 另开 Redis 连接）
+2. 服务把自己的幂等 DDL 字符串交给 `db.Migrate(ctx, db, statements)` 执行（kit 只执行，不提供内容、不读 `migrations/` 目录）
 3. 运行期：`logging` 记日志、`observability` 暴露指标、`httpclient` 出网
 4. 时钟与随机一律从 `clock` 注入（保证可测试与可复现）
 

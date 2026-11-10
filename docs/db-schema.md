@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-20
-verified-by: 功能边界固化（三份契约：db / api / dataflow）
+last-verified: 2026-11-11
+verified-by: 代码-文档对齐审计（2026-11-11：复核 `kit/db` 仍零 DDL，`Migrate` 只执行调用方语句）；功能边界固化（三份契约：db / api / dataflow）
 ---
 
 # DB Schema — tellurion-kit
@@ -18,7 +18,7 @@ verified-by: 功能边界固化（三份契约：db / api / dataflow）
 
 | kit 能力 | 它碰什么 | 它不碰什么 |
 |---|---|---|
-| `db` | 连接池、DSN 解析、跑 `migrations/` | 建表、改表、业务查询 |
+| `db` | 连接池、DSN 解析、执行调用方传入的幂等 DDL（`Migrate`） | 建表、改表、业务查询、读取 `migrations/` 目录 |
 
 ## 2. 只读输入（不属于本仓，禁止写入）
 

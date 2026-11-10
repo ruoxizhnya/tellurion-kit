@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-25
-verified-by: KT-09 / KT-10 落地（§3 `auth` / `statistics` / `httpserver` 行同步导出面；§5 偏差 #2 由裁-18 改判，check_scope 绿）
+last-verified: 2026-11-11
+verified-by: 代码-文档对齐审计（2026-11-11：v0.2.0 `logging.New` / v0.3.0 `httpserver.FailCode` 均为包内增量，未改任何包的准入边界，`check_scope` 绿）；KT-09 / KT-10 落地（§3 `auth` / `statistics` / `httpserver` 行同步导出面；§5 偏差 #2 由裁-18 改判）
 ---
 
 # SCOPE — kit 的逐包准入 / 禁入清单

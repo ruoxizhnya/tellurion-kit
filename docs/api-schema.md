@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-25
-verified-by: KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr` 已按导出面核对）
+last-verified: 2026-11-11
+verified-by: 代码-文档对齐审计（2026-11-11：`logging.New`（v0.2.0）与 `httpserver.FailCode`（v0.3.0）已在 §1/§2 登记并核对）；KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr` 已按导出面核对）
 ---
 
 # API Schema — tellurion-kit
