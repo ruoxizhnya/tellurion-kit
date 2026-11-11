@@ -30,7 +30,7 @@ verified-by: 2026-11-12 KIT-DEP-SECURITY-BUMP 收口（govulncheck EXIT=0 / 六�
   - 残留（如实登记）：x/net v0.60.0 两条 module 级（fixed v0.62.0）、x/crypto 一条（GO-2026-5932），govulncheck 判「不调用」；本单版本由裁决指定为 x/net v0.60.0，不擅自再升。
   - 发版：tag `v0.4.0`（annotated，`main` 上）已推远端；CHANGELOG `v0.4.0` 节 + README 兼容矩阵 `v0.4` 行 + AGENTS §1/§4 同批。
 
-### KIT-SURFACE-FREEZE · kit 缺导出面冻结护栏（对照 contracts 的 check_surface_freeze）[P1] ⬜
+### KIT-SURFACE-FREEZE · kit 缺导出面冻结护栏（对照 contracts 的 check_surface_freeze）[P1] ✅ 2026-11-12
 
 - **① 目标**：给 kit 一个导出面冻结护栏，让「新增/改名/删除导出符号」可机器判定，对齐 contracts 仓已有的 `check_api_surface` + `check_surface_freeze`。
 - **② 上下文**：审查发现 W2-F1（ODR-069）。kit `docs/` 无 `API.md`/`api-surface.txt`；`tools/` 只有 `check_scope` + `check_release_matrix`，无导出面冻结。kit 是底座，breaking 面比别仓宽（README「判定补充」：移动/删除/改名包记 breaking），却无机器护栏钉住导出面。
@@ -39,6 +39,14 @@ verified-by: 2026-11-12 KIT-DEP-SECURITY-BUMP 收口（govulncheck EXIT=0 / 六�
 - **⑤ 验收**：`check_surface_freeze` 绿；破坏验证 = 临时加一个未登记导出符号 ⇒ 红，还原复绿。
 - **⑥ 边界**：kit 导出面护栏；contracts 侧已有护栏不动。
 - **owner**：待定
+- **收口记录（2026-11-12）**：
+  - 落地：新增 `tools/check_surface_freeze/`（`main.go` + `main_test.go` + `testdata/ok/` 夹具）与 `docs/api-surface.txt`（**17 个库包 / 272 行指纹**）。指纹格式：`dir/Name(params) results`（函数与导出类型的导出方法，指针接收者记为 `(*T)`）、`dir/Type struct{…}`、`dir/Type interface{…}`、`dir/Type <底层类型>`、`dir/Name <类型|字面量>`；按行确定性排序去重。跳过 `package main`、`*_test.go`、`testdata/`、`vendor/`、`.`/`_` 开头目录。
+  - 三个红向：基线缺失 / 空基线 / 一个库包都没扫到（拒绝空绿）；形状漂移先列 `-`（基线有、代码无）再列 `+`（代码有、基线无）。
+  - 实现方式：照 contracts 的 `check_surface_freeze` 思路**独立一份**写在 kit 内（go/parser + go/ast，不依赖 go/types，单仓 checkout 可跑），未跨仓引用对方文件。
+  - 验收（真实输出）：`go run ./tools/check_surface_freeze` → `✅ 导出面形状与 docs/api-surface.txt 逐行一致`；`go test ./tools/check_surface_freeze -count=1` 9 条用例全 PASS（绿腿 + 新增红 + 删除红 + 改字段红 + 基线缺失红 + 空基线红 + 空扫红 + update 后复绿 + package main 不入基线）。
+  - 破坏验证（真做真还原）：① 临时加 `id/surface_probe.go`（`func SurfaceProbe()`）⇒ `+ id/SurfaceProbe()`，EXIT=1；删除后复绿。② 把 `id/id.go` 临时改名为 `id/id.go.off` ⇒ `- id/JobID() string`、`- id/SubscriptionID() string`，EXIT=1；改回后复绿（`git status` 确认无残留）。
+  - 接线：CI 在 `check_scope` / `check_release_matrix` 之后新增该步骤；AGENTS §6 登记为「第六份真相源」并写入变更触发；README 目录表 / 快速开始 / 发版流程 / 文档清单同步；`docs/README.md` 文档地图与 §3 变更触发表同步。
+  - 说明：本单只建护栏，**未改任何导出符号**，基线即当前导出面的快照。
 
 ### KIT-REQUESTID-STDLIB · RequestID 中间件只有 gin 版，6 服务仓 stdlib mux 装不上 [P1] ⬜
 

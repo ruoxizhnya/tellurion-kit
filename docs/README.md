@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-10-22
-verified-by: KT-02 结案（版本纪律三件套进导航与变更触发表）
+last-verified: 2026-11-12
+verified-by: KIT-SURFACE-FREEZE 结案（`api-surface.txt` 进文档地图与变更触发表）；此前 KT-02 结案（版本纪律三件套进导航与变更触发表）
 ---
 
 # 文档导航 — tellurion-kit
@@ -31,6 +31,7 @@ verified-by: KT-02 结案（版本纪律三件套进导航与变更触发表）
 |---|---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | 高层设计：分层、组件、依赖方向、非目标 | 改结构的人 |
 | [`SCOPE.md`](SCOPE.md) | **包边界唯一真相源**：逐包准入/禁入、业务词表、允许的 import 面、实测偏差登记；`tools/check_scope` 在 CI 核对 | 加包 / 改包边界的人 |
+| [`api-surface.txt`](api-surface.txt) | **导出面冻结基线**：每个导出符号一行形状指纹（签名 / 结构体字段 / 接口方法集 / 具名类型 / 常量字面量）；`tools/check_surface_freeze` 在 CI 逐行核对 | 动导出面 API 的人 |
 | [`../README.md`](../README.md) §版本规则/兼容矩阵 + [`../CHANGELOG.md`](../CHANGELOG.md) | **版本纪律三件套**：三行 bump 表、按 `vX.Y` 序列建行的矩阵、每个发版一节的账本；由 `tools/check_release_matrix` 在 CI 与 tag 三方对拍 | 发版的人 |
 | [`db-schema.md`](db-schema.md) | **表结构唯一真相源** + 所有权声明 | 改表的人 |
 | [`api-schema.md`](api-schema.md) | **对外接口唯一真相源** + 错误码 / 幂等 / 兼容 | 改接口的人 |
@@ -45,6 +46,7 @@ verified-by: KT-02 结案（版本纪律三件套进导航与变更触发表）
 | 代码变更 | 必须更新的文档 |
 |---|---|
 | **新增 / 改名 / 删除包**，或改某包的准入边界 | `SCOPE.md` §3 那一行（`go run ./tools/check_scope` 当场红，不是提醒） |
+| **新增 / 改名 / 删除导出符号，或改签名 / 加删导出字段** | `api-surface.txt`（先登记 `SCOPE.md` §3 + `CHANGELOG.md`，再 `go run ./tools/check_surface_freeze -update`，diff 随代码提交） |
 | **发版**（打 tag） | `README.md` 兼容矩阵那一行 + `CHANGELOG.md` 那一节（`go run ./tools/check_release_matrix` 当场红；口径源头在 `tellurion:docs/TASKS.md` QT-19 ③） |
 | 建表 / 加列 / 加索引 / 改主键 | `db-schema.md`（+ 结构级变更立 ADR） |
 | 新增 / 修改 / 废弃接口 | `api-schema.md`（错误码与幂等两节要一起看） |

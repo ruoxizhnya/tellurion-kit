@@ -1,0 +1,272 @@
+auth/(*Claims).UserIDInt64() (int64, error)
+auth/(*TokenService).AccessTTL() time.Duration
+auth/(*TokenService).Enabled() bool
+auth/(*TokenService).IsPublicPath(string) bool
+auth/(*TokenService).IssueServiceToken(string, string, time.Duration) (string, error)
+auth/(*TokenService).IssueTokens(int64, string, string) (string, string, error)
+auth/(*TokenService).Middleware() gin.HandlerFunc
+auth/(*TokenService).Parse(string) (*Claims, error)
+auth/(*TokenService).ParseRefresh(string) (*Claims, error)
+auth/(*TokenService).PublicPaths() []string
+auth/(*TokenService).Refresh(context.Context, string, IdentityLoader) (string, string, error)
+auth/(*TokenService).RequireRole(...string) gin.HandlerFunc
+auth/BcryptCost = 12
+auth/Claims struct{Username string; Role string; Kind string; jwt.RegisteredClaims}
+auth/ClaimsFromContext(*gin.Context) (*Claims, bool)
+auth/Config struct{JWTSecret []byte; AccessTokenTTL time.Duration; RefreshTokenTTL time.Duration; Issuer string; PublicPaths []string}
+auth/Config.WithDefaults() Config
+auth/CtxClaims = "auth.claims"
+auth/CtxRole = "auth.role"
+auth/CtxUserID = "auth.user_id"
+auth/CtxUsername = "auth.username"
+auth/ErrIdentityLoadFailed = errors.New("auth: identity lookup failed")
+auth/ErrInvalidServiceToken = errors.New("auth: invalid service token parameters")
+auth/ErrInvalidToken = errors.New("auth: invalid or expired token")
+auth/ErrMissingIdentity = errors.New("auth: refresh requires an identity loader")
+auth/ErrTokensDisabled = errors.New("auth: cannot issue tokens: JWT secret not configured")
+auth/ErrUnauthenticated = errors.New("auth: request has no authenticated user")
+auth/ErrUserDisabled = errors.New("auth: user account is disabled")
+auth/HashPassword(string) (string, error)
+auth/Identity struct{ID int64; Username string; Role string; Disabled bool}
+auth/IdentityLoader func(context.Context, int64) (Identity, error)
+auth/KindAccess = "access"
+auth/KindRefresh = "refresh"
+auth/NewTokenService(Config) *TokenService
+auth/RequireRole(...string) gin.HandlerFunc
+auth/RoleFromContext(*gin.Context) (string, bool)
+auth/ServiceRole = "service"
+auth/TokenService struct{cfg Config; secret []byte; publicPaths map[string]struct{}}
+auth/UserFromContext(*gin.Context) (int64, string, bool)
+auth/UsernameFromContext(*gin.Context) (string, bool)
+auth/VerifyPassword(string, string) error
+auth/httpadapter/(*Policy).Entries() map[string]Rule
+auth/httpadapter/(*Policy).Rule(string) (Rule, bool)
+auth/httpadapter/Authenticate(*auth.TokenService, *http.Request) (*auth.Claims, error)
+auth/httpadapter/Authorize(*auth.Claims, Rule) error
+auth/httpadapter/ClaimsFromContext(context.Context) (*auth.Claims, bool)
+auth/httpadapter/DecideStartup(string, bool, string, string) Startup
+auth/httpadapter/ErrForbidden = errors.New("httpadapter: forbidden")
+auth/httpadapter/ErrUnauthenticated = errors.New("httpadapter: unauthenticated")
+auth/httpadapter/Guard(*auth.TokenService, *Policy) func(http.Handler) http.Handler
+auth/httpadapter/InsecureExposureLoopbackPublished = "loopback-published"
+auth/httpadapter/IsLoopbackHost(string) bool
+auth/httpadapter/IsMutating(string) bool
+auth/httpadapter/MustNewPolicy(map[string]Rule) *Policy
+auth/httpadapter/NewPolicy(map[string]Rule) (*Policy, error)
+auth/httpadapter/Policy struct{rules map[string]Rule}
+auth/httpadapter/RouteKey(*http.Request) string
+auth/httpadapter/Rule struct{Public bool; AnyAuthenticated bool; Roles []string}
+auth/httpadapter/Startup struct{Secret []byte; Insecure bool; Refuse bool; Reason string}
+authz/(*Policy).Entries() map[string]Rule
+authz/(*Policy).Rule(string) (Rule, bool)
+authz/Authenticator interface{Enabled() bool}
+authz/IsMutating(string) bool
+authz/Middleware(Authenticator, *Policy) gin.HandlerFunc
+authz/MustNewPolicy(map[string]Rule) *Policy
+authz/NewPolicy(map[string]Rule) (*Policy, error)
+authz/Policy struct{rules map[string]Rule}
+authz/Rule struct{Public bool; AnyAuthenticated bool; Roles []string}
+clock/(*LiveClock).Advance(time.Time) error
+clock/(*LiveClock).Mode() Mode
+clock/(*LiveClock).Now() time.Time
+clock/(*VirtualClock).Advance(time.Time) error
+clock/(*VirtualClock).Mode() Mode
+clock/(*VirtualClock).Now() time.Time
+clock/Clock interface{Now() time.Time; Advance(time.Time) error; Mode() Mode}
+clock/ErrLiveClockImmutable = errors.New("clock: LiveClock 不可被程序推进（墙钟自走）")
+clock/ErrTimeRewind = errors.New("clock: 虚拟时间只准非递减（倒退会破坏确定性）")
+clock/LiveClock struct{}
+clock/Mode int
+clock/ModeDeterministic Mode
+clock/ModeLive
+clock/NewLiveClock() *LiveClock
+clock/NewVirtualClock(time.Time) *VirtualClock
+clock/VirtualClock struct{nanos int64}
+db/BuildDSN(Config) (string, error)
+db/Config struct{URL string; Host string; Port int; User string; Password string; Name string; SSLMode string}
+db/Connect(context.Context, string, PoolOptions) (*pgxpool.Pool, error)
+db/ConnectRedis(context.Context, string) (*redis.Client, error)
+db/DefaultPoolOptions() PoolOptions
+db/ErrDSNPlaceholder = errors.New("database url contains an unresolved ${...} placeholder")
+db/ErrEmptyDBPassword = errors.New("database password is empty")
+db/ErrEmptyDBUser = errors.New("database user is empty")
+db/Execer interface{Exec(context.Context, string, ...any) (pgconn.CommandTag, error)}
+db/Migrate(context.Context, Execer, []string) error
+db/PoolOptions struct{MaxConns int32; MinConns int32; MaxConnLifetime time.Duration; MaxConnIdleTime time.Duration}
+decimal/(*Decimal).UnmarshalJSON([]byte) error
+decimal/Abs(Decimal) Decimal
+decimal/Add(Decimal, Decimal) Decimal
+decimal/Compare(Decimal, Decimal) int
+decimal/Decimal struct{value int64; scale int8}
+decimal/Decimal.Ceiling() Decimal
+decimal/Decimal.Floor() Decimal
+decimal/Decimal.Format(fmt.State, rune)
+decimal/Decimal.IsNegative() bool
+decimal/Decimal.IsPositive() bool
+decimal/Decimal.IsZero() bool
+decimal/Decimal.MarshalJSON() ([]byte, error)
+decimal/Decimal.Round(int) Decimal
+decimal/Decimal.Scale() int
+decimal/Decimal.String() string
+decimal/Decimal.ToFloat() float64
+decimal/Decimal.ToString() string
+decimal/Decimal.Truncate(int) Decimal
+decimal/Decimal.Value() int64
+decimal/Div(Decimal, Decimal, int) (Decimal, error)
+decimal/Equal(Decimal, Decimal) bool
+decimal/ErrDivisionByZero = errors.New("decimal: division by zero")
+decimal/ErrInvalidFormat = errors.New("decimal: invalid format")
+decimal/ErrOverflow = errors.New("decimal: overflow")
+decimal/FromFloat(float64, int) Decimal
+decimal/FromInt(int64) Decimal
+decimal/FromString(string) (Decimal, error)
+decimal/GreaterThan(Decimal, Decimal) bool
+decimal/GreaterThanOrEqual(Decimal, Decimal) bool
+decimal/LessThan(Decimal, Decimal) bool
+decimal/LessThanOrEqual(Decimal, Decimal) bool
+decimal/MaxScale = 18
+decimal/Mul(Decimal, Decimal) Decimal
+decimal/MulRound(Decimal, Decimal, int) Decimal
+decimal/MustFromString(string) Decimal
+decimal/Neg(Decimal) Decimal
+decimal/New(int64, int) Decimal
+decimal/One Decimal
+decimal/Sub(Decimal, Decimal) Decimal
+decimal/Zero Decimal
+errors/(*AppError).Error() string
+errors/(*AppError).Is(error) bool
+errors/(*AppError).ToMap() map[string]interface{}
+errors/(*AppError).Unwrap() error
+errors/(*AppError).WithCause(error) *AppError
+errors/(*AppError).WithOperation(string) *AppError
+errors/AppError struct{Code ErrorCode; Message string; Operation string; Cause error; StackTrace string}
+errors/DataQuality(string, string) *AppError
+errors/ErrCodeConflict ErrorCode
+errors/ErrCodeDataQuality ErrorCode
+errors/ErrCodeInternal ErrorCode
+errors/ErrCodeInvalidInput ErrorCode
+errors/ErrCodeNotFound ErrorCode
+errors/ErrCodePermission ErrorCode
+errors/ErrCodeRateLimit ErrorCode
+errors/ErrCodeTimeout ErrorCode
+errors/ErrCodeUnavailable ErrorCode
+errors/ErrorCode string
+errors/Internal(error, string) *AppError
+errors/InvalidInput(string, string) *AppError
+errors/New(ErrorCode, string) *AppError
+errors/NotFound(string, string) *AppError
+errors/Timeout(string, error) *AppError
+errors/Unavailable(string, error) *AppError
+errors/Wrap(error, ErrorCode, string, string) *AppError
+errors/Wrapf(error, ErrorCode, string, string, ...interface{}) *AppError
+httpclient/(*Client).Do(context.Context, Request) (*Response, error)
+httpclient/(*Client).Get(context.Context, string) (*Response, error)
+httpclient/(*Client).Post(context.Context, string, interface{}) (*Response, error)
+httpclient/Client struct{baseURL string; httpClient *http.Client; logger zerolog.Logger; maxRetries int}
+httpclient/DecodeJSON([]byte, interface{}) error
+httpclient/New(string, time.Duration, int) *Client
+httpclient/Request struct{Method string; Path string; Body interface{}; Headers map[string]string}
+httpclient/Response struct{StatusCode int; Body []byte}
+httpserver/(*AppError).Error() string
+httpserver/(*AppError).Unwrap() error
+httpserver/AllowedOrigins(*viper.Viper) []string
+httpserver/AppError struct{Status int; Code string; Message string; Cause error}
+httpserver/ApplyGinMode(string) (string, bool)
+httpserver/CORS([]string) gin.HandlerFunc
+httpserver/CodeBadRequest = "bad_request"
+httpserver/CodeConflict = "conflict"
+httpserver/CodeForbidden = "forbidden"
+httpserver/CodeInternal = "internal"
+httpserver/CodeNotFound = "not_found"
+httpserver/CodeRateLimited = "rate_limited"
+httpserver/CodeUnauthorized = "unauthorized"
+httpserver/CodeUnavailable = "unavailable"
+httpserver/ConfigKeyGinMode = "server.gin_mode"
+httpserver/Error(*gin.Context, int, error)
+httpserver/ErrorMiddleware() gin.HandlerFunc
+httpserver/Fail(*gin.Context, int, string)
+httpserver/FailCause(*gin.Context, int, string, error)
+httpserver/FailCode(*gin.Context, int, string, string)
+httpserver/Failf(*gin.Context, int, string, ...any)
+httpserver/GinModeDebug = "debug"
+httpserver/GinModeRelease = "release"
+httpserver/GinModeTest = "test"
+httpserver/IsLoopbackRemoteAddr(string) bool
+httpserver/StatusForAppError(error) int
+httpserver/Wrap(*gin.Context, int, error, string)
+id/JobID() string
+id/SubscriptionID() string
+logging/Init(string, string)
+logging/Logger zerolog.Logger
+logging/MaskAPIKey(string) string
+logging/MaskAccountNumber(string) string
+logging/MaskMap(map[string]any) map[string]any
+logging/MaskSensitiveValue(string) string
+logging/MaskString(string, int, int) string
+logging/New(string, string, io.Writer) zerolog.Logger
+logging/WithContext(map[string]any) zerolog.Logger
+observability/(*HTTPTransport).RoundTrip(*http.Request) (*http.Response, error)
+observability/(*Metrics).ObserveHTTP(string, int)
+observability/(*Metrics).Register()
+observability/(*Metrics).RegisterCollectors(...prometheus.Collector)
+observability/(*Metrics).Registry() *prometheus.Registry
+observability/(*Metrics).SetCacheHitRatio(string, float64)
+observability/ContextKey = "request_id"
+observability/HTTPTransport struct{Base http.RoundTripper; Metrics *Metrics; Service string}
+observability/Handler(*Metrics) gin.HandlerFunc
+observability/Metrics struct{HTTPRequests *prometheus.CounterVec; CacheHitRatio *prometheus.GaugeVec; registry *prometheus.Registry}
+observability/MustCollect(prometheus.Collector, error) prometheus.Collector
+observability/NewMetrics() *Metrics
+observability/RequestIDFromContext(context.Context) string
+observability/RequestIDHeader = "X-Request-ID"
+observability/RequestIDKey contextKey
+observability/RequestIDMiddleware() gin.HandlerFunc
+observability/WithRequestIDHeader(*http.Request, string) *http.Request
+sandbox/runner/(*Runner).Run(context.Context, string, []string, Options) (*bytes.Buffer, *bytes.Buffer, error)
+sandbox/runner/(*Runner).RunExitCode(context.Context, string, []string, Options) (*bytes.Buffer, *bytes.Buffer, int, error)
+sandbox/runner/DefaultTimeout = 5 * time.Second
+sandbox/runner/ErrLimitSetupFailed = errors.New("runner: failed to apply resource limits in the child")
+sandbox/runner/ErrLimitsUnsupported = errors.New("runner: requested resource limits cannot be enforced here")
+sandbox/runner/ErrTimeout = errors.New("runner: child exceeded timeout and was killed")
+sandbox/runner/Limits struct{CPUSeconds int; MemoryBytes int64; OpenFiles int; NumProcs int; FileSize int64}
+sandbox/runner/Limits.Describe() string
+sandbox/runner/Limits.IsZero() bool
+sandbox/runner/New(...Option) *Runner
+sandbox/runner/Option func(*Runner)
+sandbox/runner/Options struct{Dir string; Env []string; ExtraFiles []*os.File; Limits *Limits; Stdin *bytes.Reader}
+sandbox/runner/Runner struct{timeout time.Duration; limits Limits; allowUnenforcedLimits bool; onTimeout func([]string); onOOM func([]string); onUnenforcedLimits func([]string, Limits); mu sync.Mutex}
+sandbox/runner/WithAllowUnenforcedLimits() Option
+sandbox/runner/WithLimits(Limits) Option
+sandbox/runner/WithOnOOM(func([]string)) Option
+sandbox/runner/WithOnTimeout(func([]string)) Option
+sandbox/runner/WithOnUnenforcedLimits(func([]string, Limits)) Option
+sandbox/runner/WithTimeout(time.Duration) Option
+sandbox/staticcheck/Check(string) []Finding
+sandbox/staticcheck/CheckOrError(string) error
+sandbox/staticcheck/Finding struct{Pattern string; Message string; Severity Severity; Line int; Excerpt string}
+sandbox/staticcheck/Finding.String() string
+sandbox/staticcheck/Severity string
+sandbox/staticcheck/SeverityCritical Severity
+sandbox/staticcheck/SeverityHigh Severity
+sandbox/staticcheck/SeverityMedium Severity
+statistics/AnnualizeVolatility(float64, int) float64
+statistics/LinearRegression([]float64) (float64, float64, float64)
+statistics/LogReturns([]float64) []float64
+statistics/Mean([]float64) float64
+statistics/MeanFinite([]float64) float64
+statistics/Median([]float64) float64
+statistics/Pearson([]float64, []float64) float64
+statistics/Percentile([]float64, float64) float64
+statistics/PercentileRank([]float64) []float64
+statistics/PopulationStdDev([]float64) float64
+statistics/PopulationVariance([]float64) float64
+statistics/Rank([]float64) []float64
+statistics/SampleStdDev([]float64) float64
+statistics/SampleVariance([]float64) float64
+statistics/Slope([]float64) float64
+statistics/Spearman([]float64, []float64) float64
+statistics/StdDevFromMean([]float64, float64, bool) float64
+statistics/Sum([]float64) float64
+statistics/Variance([]float64, bool) float64
+statistics/VarianceFromMean([]float64, float64, bool) float64
+statistics/ZScore([]float64) []float64

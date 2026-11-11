@@ -47,6 +47,13 @@ jobs:
       - name: 版本纪律核对（KT-02 护栏：矩阵 ↔ CHANGELOG ↔ tag 不一致即红）
         run: go run ./tools/check_release_matrix
 
+      # KIT-SURFACE-FREEZE：导出面形状的机械判据。本仓在最底层，一次改名/改签名同时打到
+      # contracts / core / agent，靠评审肉眼盯不住。任何一行增删改都红；确认要改时先登记
+      # docs/SCOPE.md + CHANGELOG，再跑 `go run ./tools/check_surface_freeze -update` 并把
+      # docs/api-surface.txt 的 diff 一并提交。
+      - name: 导出面冻结核对（未登记新增 / 删符号 / 改签名 即红）
+        run: go run ./tools/check_surface_freeze
+
       - name: Test
         run: go test ./... -count=1
 

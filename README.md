@@ -13,9 +13,11 @@
 | `logging/` `errors/` `id/` `decimal/` `statistics/` `httpclient/` `httpserver/` `auth/` `auth/httpadapter/` `authz/` `observability/` `clock/` `sandbox/{staticcheck,runner}/` `db/` | **13 个包（QT-05-B 已落地）+ `auth/httpadapter` 子包（KT-08，2026-10-25）**：逐包「收什么 / 不收什么」在 [`docs/SCOPE.md`](docs/SCOPE.md) §3，对外形状在 [`docs/api-schema.md`](docs/api-schema.md) §1 |
 | `docs/` | 本仓文档：台账 / 边界 / 决策 / 归档 —— 从这里进：`docs/README.md` |
 | `docs/SCOPE.md` | **13 包逐包准入 / 禁入清单** + 业务词表 + 依赖方向 + 实测偏差登记（KT-01） |
+| `docs/api-surface.txt` | **导出面冻结基线**：每个导出符号一行形状指纹（签名 / 字段 / 方法集 / 常量字面量），`KIT-SURFACE-FREEZE` |
 | `CHANGELOG.md` | 版本账本：每个发版一节，breaking 逐条写明「旧 → 新」 |
 | `tools/check_scope/` | 包边界护栏：业务词 / 越界 import / 未登记包 → 红（`go run ./tools/check_scope`） |
 | `tools/check_release_matrix/` | 版本纪律护栏：规则表 / 兼容矩阵 ↔ CHANGELOG ↔ tag 不一致即红（`go run ./tools/check_release_matrix`） |
+| `tools/check_surface_freeze/` | 导出面护栏：未登记新增 / 删符号 / 改签名 / 改字段 → 红（`go run ./tools/check_surface_freeze`；有意变更先改账再 `-update`） |
 | `AGENTS.md` | 本仓入口（构建、边界、禁止、依赖版本、拉取前提） |
 | `doc.go` | 根包（`package kit`），只有文档注释：它让本仓可被 `go list ./...` 识别，代码一律住上面那些子包 |
 
@@ -26,10 +28,11 @@ go build ./...
 go vet ./...
 go run ./tools/check_scope          # 包边界 ↔ docs/SCOPE.md 逐包清单（CI 同款，KT-01 护栏）
 go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGELOG ↔ tag（KT-02 护栏）
+go run ./tools/check_surface_freeze # 导出面 ↔ docs/api-surface.txt 逐行指纹（KIT-SURFACE-FREEZE 护栏）
 go test ./...
 ```
 
-本仓**单独 checkout 就能跑通**上面五条。需要别的仓源码才过 → 边界错了，不是加 `replace` 能解决的问题。
+本仓**单独 checkout 就能跑通**上面六条。需要别的仓源码才过 → 边界错了，不是加 `replace` 能解决的问题。
 
 `db` 的三条真服务腿挂在 build tag 上，默认不跑（`go test ./...` 不含它们）：
 
@@ -115,7 +118,9 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 # 1. 先在 CHANGELOG.md 把本次改动记进对应版本节（标题格式 ## [vX.Y.Z] - YYYY-MM-DD）
 # 2. 再更新 README 兼容矩阵：新的 vX.Y 序列加一行，同序列的补丁版改那一行
 # 3. 包有增删改名、或某包准入边界变了 → 同步 docs/SCOPE.md §3 那一行
-go run ./tools/check_scope && go run ./tools/check_release_matrix   # 两条都绿才继续
+# 4. 导出面动了（新增 / 改名 / 改签名 / 加删字段）→ 先登记 SCOPE §3 + CHANGELOG，再跑
+#    go run ./tools/check_surface_freeze -update 并提交 docs/api-surface.txt 的 diff
+go run ./tools/check_scope && go run ./tools/check_surface_freeze && go run ./tools/check_release_matrix   # 三条都绿才继续
 git tag -a v0.1.0 -m "v0.1.0: feat <一句话>"
 git push origin main && git push origin v0.1.0
 ```
@@ -135,6 +140,7 @@ git push origin main && git push origin v0.1.0
 
 - 文档导航：`docs/README.md`
 - **包边界清单**：`docs/SCOPE.md`（13 包逐包准入/禁入 + 业务词表；`go run ./tools/check_scope` 核对）
+- **导出面基线**：`docs/api-surface.txt`（每符号一行形状指纹；`go run ./tools/check_surface_freeze` 核对）
 - 本仓台账：`docs/TASKS.md`（唯一；跨仓任务只留指针）
 - 边界与依赖方向：`docs/ARCHITECTURE.md`
 - 版本账本：`CHANGELOG.md`（与兼容矩阵、tag 由 CI 三方对拍）

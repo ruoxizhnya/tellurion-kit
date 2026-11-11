@@ -8,7 +8,12 @@
 
 ## [Unreleased]
 
-（暂无）
+### 工具（护栏，不发版、不改导出面）
+
+- **KIT-SURFACE-FREEZE**（2026-11-12）：新增 `tools/check_surface_freeze` + `docs/api-surface.txt` 基线（17 个库包 / 272 行指纹），
+  导出面任何一行增删改都在 CI 变红；基线缺失 / 空基线 / 一个库包都没扫到同样红（拒绝空绿）。
+  有意变更的合法路径：先登记 `docs/SCOPE.md` §3 + 本节，再 `go run ./tools/check_surface_freeze -update`，diff 随代码提交。
+  **本仓导出符号未做任何改动**，基线即当前快照。
 
 ## [v0.4.0] - 2026-11-12
 

@@ -101,4 +101,10 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 同样是机器核对的：发版只写 CHANGELOG 不更新矩阵（或反过来、或 tag 打在没账的版本上），`go run ./tools/check_release_matrix` 当场红（KT-02）。
 本仓的 breaking 面比别仓更宽（底座一次改动同时打到 contracts / core / agent），所以「移动 / 删除 / 改名一个包」在本仓**记作 breaking**，见 README「判定补充」。
 
-**变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；**新增 / 改名 / 删除包，或改某包准入边界 → 改 `docs/SCOPE.md` 那一行**；**发版 → 改兼容矩阵那一行 + `CHANGELOG.md` 那一节**；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。
+**第六份是导出面冻结基线**：`docs/api-surface.txt`（`KIT-SURFACE-FREEZE`）—— 每个导出符号一行形状指纹
+（函数签名 / 结构体字段 / 接口方法集 / 具名类型底层类型 / 常量字面量），`go run ./tools/check_surface_freeze` 逐行比对。
+它和第四份分工不同：`check_scope` 核**包边界**（不该有的包、不该出现的业务词），这一份核**已有导出面的形状有没有动**（改名、改签名、加删字段、改底层类型）。
+**红只有一条合法出路**：确认这是有意的 API 变更 → 先登记 `docs/SCOPE.md` §3 与 `CHANGELOG.md` → 跑 `go run ./tools/check_surface_freeze -update` → 把 `docs/api-surface.txt` 的 diff 随代码一起提交评审。
+**不许**为了让 CI 变绿直接 `-update` 而不改账；基线缺失 / 空基线 / 一个库包都没扫到，护栏自身即红（拒绝空绿）。
+
+**变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；**新增 / 改名 / 删除包，或改某包准入边界 → 改 `docs/SCOPE.md` 那一行**；**新增 / 改名 / 改签名 / 加删导出字段 → 改 `docs/api-surface.txt`（`-update`）**；**发版 → 改兼容矩阵那一行 + `CHANGELOG.md` 那一节**；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。

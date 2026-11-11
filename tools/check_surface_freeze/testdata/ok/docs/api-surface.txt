@@ -1,0 +1,10 @@
+demo/(*Widget).Resize(int) error
+demo/DefaultName = "demo"
+demo/Kind string
+demo/KindA Kind
+demo/KindB Kind
+demo/New(string, ...func(*Widget)) *Widget
+demo/OldThing()
+demo/Store interface{Get(context.Context, string) (Widget, error)}
+demo/Widget struct{Name string; Size int}
+demo/Widget.Label() string
