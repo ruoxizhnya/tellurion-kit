@@ -8,12 +8,30 @@
 
 ## [Unreleased]
 
-### 工具（护栏，不发版、不改导出面）
+（暂无）
 
-- **KIT-SURFACE-FREEZE**（2026-11-12）：新增 `tools/check_surface_freeze` + `docs/api-surface.txt` 基线（17 个库包 / 272 行指纹），
+## [v0.5.0] - 2026-11-12
+
+### 新增（MINOR：stdlib `net/http` 版 request_id 中间件）
+
+- **KIT-REQUESTID-STDLIB**（2026-11-12，W2-F1 / ODR-069）：新增 `observability.RequestIDHandler(next http.Handler) http.Handler`，
+  给用 stdlib `net/http` mux 的服务仓一个装得上的 request_id 中间件。
+  - 入站：`X-Request-ID` **有则透传**（上游 token 优先）、无则生成 UUIDv4；
+  - 上下文：token 写进 request 的 `context.Context`（`observability.RequestIDKey`），用 `observability.RequestIDFromContext(ctx)` 取回；
+  - 响应：回镜像 `X-Request-ID` 头；
+  - 出站：下游请求带**同一个 context** 即可，由已有的 `observability.HTTPTransport`（或 `WithRequestIDHeader`）写入 `X-Request-ID`。
+  - **只增不改**：gin 版 `RequestIDMiddleware` 一行未动，两者语义逐条一致；消费方不改代码即可继续用 gin 版。
+  - 验收：新增 4 条单测（缺失生成 / 入站透传 / 出站传播 / 64 并发不串号），`observability` 全包测试绿；
+    `go build ./... && go vet ./... && go test ./... -count=1` 全绿。
+  - 破坏验证：临时删掉「读入站 header」那两行 ⇒ `TestRequestIDHandler_PreservesInboundToken` 红
+    （expected `upstream-token`，actual 为新生成 UUID）；逐字节还原（SHA256 一致）后复绿。
+  - 基线：`docs/api-surface.txt` 随本版 `-update` 增一行 `observability/RequestIDHandler(http.Handler) http.Handler`。
+
+### 工具（护栏，不改导出面）
+
+- **KIT-SURFACE-FREEZE**（2026-11-12）：新增 `tools/check_surface_freeze` + `docs/api-surface.txt` 基线（17 个库包；建基线时 272 行，本版新增 `RequestIDHandler` 后 273 行指纹），
   导出面任何一行增删改都在 CI 变红；基线缺失 / 空基线 / 一个库包都没扫到同样红（拒绝空绿）。
   有意变更的合法路径：先登记 `docs/SCOPE.md` §3 + 本节，再 `go run ./tools/check_surface_freeze -update`，diff 随代码提交。
-  **本仓导出符号未做任何改动**，基线即当前快照。
 
 ## [v0.4.0] - 2026-11-12
 

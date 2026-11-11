@@ -218,6 +218,7 @@ observability/Metrics struct{HTTPRequests *prometheus.CounterVec; CacheHitRatio 
 observability/MustCollect(prometheus.Collector, error) prometheus.Collector
 observability/NewMetrics() *Metrics
 observability/RequestIDFromContext(context.Context) string
+observability/RequestIDHandler(http.Handler) http.Handler
 observability/RequestIDHeader = "X-Request-ID"
 observability/RequestIDKey contextKey
 observability/RequestIDMiddleware() gin.HandlerFunc

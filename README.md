@@ -2,7 +2,7 @@
 
 > 5 分钟了解本服务：[SERVICE.md](SERVICE.md)
 
-> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23）／已发版 `v0.1.1`（KT-08，2026-10-25：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（KT-09，2026-10-25：`auth.IssueServiceToken`）／已发版 `v0.1.3`（KT-10，2026-10-25：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 `v0.1.4`（KT-11，2026-10-25）／已发版 `v0.2.0`（KT-13，2026-11-10：`logging.New` 可注入 logger）／已发版 `v0.3.0`（K4 前置，2026-11-10：`httpserver.FailCode`）／已发版 `v0.4.0`（KIT-DEP-SECURITY-BUMP，2026-11-12：pgx v5.11.0 / x/net v0.60.0 / x/text v0.42.0，`go` 指令抬到 1.26.11），tag 均在 `main` 上**
+> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23）／已发版 `v0.1.1`（KT-08，2026-10-25：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（KT-09，2026-10-25：`auth.IssueServiceToken`）／已发版 `v0.1.3`（KT-10，2026-10-25：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 `v0.1.4`（KT-11，2026-10-25）／已发版 `v0.2.0`（KT-13，2026-11-10：`logging.New` 可注入 logger）／已发版 `v0.3.0`（K4 前置，2026-11-10：`httpserver.FailCode`）／已发版 `v0.4.0`（KIT-DEP-SECURITY-BUMP，2026-11-12：pgx v5.11.0 / x/net v0.60.0 / x/text v0.42.0，`go` 指令抬到 1.26.11）／已发版 `v0.5.0`（KIT-REQUESTID-STDLIB + KIT-SURFACE-FREEZE，2026-11-12：`observability.RequestIDHandler` stdlib 中间件 + 导出面冻结护栏），tag 均在 `main` 上**
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
@@ -89,6 +89,7 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
+| `v0.5` | 已发版（`v0.5.0` 2026-11-12 新增 stdlib `net/http` 版 `observability.RequestIDHandler`；同版并入导出面冻结护栏 `KIT-SURFACE-FREEZE`；只增不改） | 尚无 require | 尚未验证升 pin（本版 2026-11-12 刚发版，消费仓跟升归各自台账） | 尚未验证升 pin（同上） |
 | `v0.4` | 已发版（`v0.4.0` 2026-11-12 底座依赖安全 bump：pgx `v5.11.0` / x/net `v0.60.0` / x/text `v0.42.0`；`go` 指令 1.26.11；只升依赖、导出面无改动） | 尚无 require | 尚未验证升 pin（本版 2026-11-12 刚发版，消费仓跟升归各自台账） | 尚未验证升 pin（同上） |
 | `v0.3` | 已发版（`v0.3.0` 2026-11-10 新增 `httpserver.FailCode` 调用点指定错误码；只增不改） | 尚无 require | 已 require `v0.3.0`（2026-11-10 升 pin 实测 `go.mod`） | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
 | `v0.2` | 已发版（`v0.2.0` 2026-11-10 新增 `logging.New(level, format, out)` 可注入 logger；旧 `logging.Logger` / `Init` 保留为 `Deprecated` 薄壳，下一 MAJOR 删除） | 尚无 require | 曾被 `v0.2.0` 使用（2026-11-10），已随 `v0.3.0` 前滚 | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
@@ -111,6 +112,8 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 `main` 上的 `KT-13`（2026-11-07 落码）已随 **`v0.2.0`（2026-11-10）** 发版，本段保留为历史：当时未打 tag，现已由上面的 `v0.2.0` 段落接替，兼容矩阵已新增 `v0.2` 行。
 
 `v0.4.0` 已于 **2026-11-12** 发版（`KIT-DEP-SECURITY-BUMP`）：只升依赖、**导出面逐字未动**——pgx `v5.7.3 → v5.11.0`、x/net `v0.55.0 → v0.60.0`、x/text `v0.38.0 → v0.42.0`，`govulncheck ./...` EXIT=0。**唯一需要消费方注意的变化是工具链底线**：x/net v0.60.0 要求 `go >= 1.26.0`，且 stdlib 的安全修复只到 1.26.11，所以本仓 `go` 指令从 `1.25.0` 抬到 `1.26.11`——go.mod 仍写 `go 1.25.x` 的消费方升 pin 后需要 `GOTOOLCHAIN=auto`（默认即 auto）或把本机 / CI 工具链升到 ≥ `1.26.11`，代码不用改。已知残留的 3 条 module 级 advisory（本仓不调用）逐条记在 CHANGELOG 的 `v0.4.0` 节。
+
+`v0.5.0` 已于 **2026-11-12** 发版（`KIT-REQUESTID-STDLIB`）：新增 `observability.RequestIDHandler(next http.Handler) http.Handler`，给用 stdlib `net/http` mux 的服务仓补上 request_id 中间件——入站有 `X-Request-ID` 则透传、无则生成，token 进 request context（`observability.RequestIDFromContext` 取回），出站用同一 context 经 `HTTPTransport` / `WithRequestIDHeader` 传播。**只增不改**：gin 版 `RequestIDMiddleware` 一行未动。同版并入 `KIT-SURFACE-FREEZE` 导出面冻结护栏（`docs/api-surface.txt` + CI 步骤）。
 
 ## 发版流程
 
