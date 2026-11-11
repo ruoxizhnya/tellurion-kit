@@ -28,6 +28,7 @@ verified-by: 2026-11-12 库存三单全部收口——KIT-DEP-SECURITY-BUMP（go
   - 验收（本机真实输出）：`govulncheck ./...` EXIT=0；`go build ./...` / `go vet ./...` / `go test ./... -count=1` 全绿；`go run ./tools/check_scope` 与 `check_release_matrix` 绿。
   - 破坏验证：x/text 降回 v0.38.0（x/net 被 MVS 压到 v0.56.0）⇒ govulncheck EXIT=3（6 条符号级，含 GO-2026-6629 / GO-2026-6617 / GO-2026-5970）；`go.mod` / `go.sum` 逐字节还原（SHA256 一致）后复绿 EXIT=0。单降 pgx 只到 package 级、默认模式 EXIT=0（kit 不调用其漏洞符号），故不作为破坏验证证据。
   - 残留（如实登记）：x/net v0.60.0 两条 module 级（fixed v0.62.0）、x/crypto 一条（GO-2026-5932），govulncheck 判「不调用」；本单版本由裁决指定为 x/net v0.60.0，不擅自再升。
+  - 残留的**重开条件**（2026-11-12 裁决：接受现状，不再前推到 x/net v0.62.0；不是「永久不做」）：① 任一消费仓 `go list -m all` 已解析到 x/net ≥ v0.62.0（本仓 pin 成为下游 MVS 下限 / 账实不符）；② 下一次安全轮次（govulncheck 复查 / 季度依赖体检）重新扫出这三条，或任一条从 module 级变为符号级；③ 上游把 GO-2026-5932 的修复发成正式版。触发后一并升到修好版本（x/net ≥ v0.62.0、x/crypto 正式版），判定 MINOR / PATCH 发新 tag 并通知 7 仓二次升 pin；触发前不做任何版本动作。
   - 发版：tag `v0.4.0`（annotated，`main` 上）已推远端；CHANGELOG `v0.4.0` 节 + README 兼容矩阵 `v0.4` 行 + AGENTS §1/§4 同批。
 
 ### KIT-SURFACE-FREEZE · kit 缺导出面冻结护栏（对照 contracts 的 check_surface_freeze）[P1] ✅ 2026-11-12

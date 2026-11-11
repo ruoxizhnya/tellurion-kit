@@ -70,7 +70,7 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 
 > 版本与 core 当前 `go.mod` 对齐，避免迁移期同一个库在两个仓里出现两个大版本。
 > **`go` 指令 = 1.26.11**（`v0.4.0` 起）：x/net v0.60.0 要求 `go >= 1.26.0`，而 stdlib 的安全修复要到 1.26.11 才齐；
-> 消费方 go.mod 仍是 `go 1.25.x` 时靠 `GOTOOLCHAIN=auto`（默认）自动取 1.26.11，或显式升工具链。升级顺序与残留 advisory 见 CHANGELOG `v0.4.0`。
+> 消费方 go.mod 仍是 `go 1.25.x` 时靠 `GOTOOLCHAIN=auto`（默认）自动取 1.26.11，或显式升工具链。升级顺序、残留 advisory 与重开条件见 CHANGELOG `v0.4.0`。
 > `github.com/tetratelabs/wazero` 属 core 的 WASM host（`sandbox/wasm` 不搬），**不进本仓**。
 
 > 跨仓依赖**只认版本号**（伪版本或 tag），不认源码路径。契约变更走 `tellurion-contracts` 的发布，不走"顺手改一下"。

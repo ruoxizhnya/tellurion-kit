@@ -57,6 +57,13 @@
     fixed v0.62.0），`x/crypto@v0.57.0` 有 1 条（GO-2026-5932，fixed 于伪版本）；三者均为 **module 级**，
     `govulncheck` 判定本仓代码**不调用**，故 `./...` 判定 0 条 affected。本单版本由裁决指定为
     x/net v0.60.0，不擅自再升。
+  - **残留的重开条件（2026-11-12 裁决：接受现状，不再前推到 x/net v0.62.0；本条不是「永久不做」）**：
+    出现下列任一情形时，把 x/net / x/crypto 一并升到修好版本（x/net ≥ v0.62.0、x/crypto 取修复后的正式版），
+    按版本规则判定 MINOR / PATCH、发新 tag，并同步通知 7 个消费仓二次升 pin：
+    ① **x/net 成为下游 MVS 的实际下限** —— 任一消费仓 `go list -m all` 已解析到 ≥ v0.62.0，本仓 pin 变成账实不符；
+    ② **下一次安全轮次**（govulncheck 复查 / 季度依赖体检）把这三条重新扫出来，或其中任一条从 module 级升级为符号级（代码开始走到漏洞路径）；
+    ③ 上游把 GO-2026-5932 的修复发成**正式版本**（替掉当前的伪版本），可与其他两条合并处理。
+    触发前不做任何版本动作：不逐条升、不为清「不可达告警」单独发版。
   - **验收（本机实测，2026-11-12）**：`govulncheck ./...` **EXIT=0**（`No vulnerabilities found`）；
     `go build ./...` / `go vet ./...` / `go test ./... -count=1` 全绿；`go run ./tools/check_scope`、
     `go run ./tools/check_release_matrix` 绿。
