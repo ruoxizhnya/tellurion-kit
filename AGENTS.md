@@ -6,7 +6,7 @@
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
-**状态**：S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（2026-10-23，QT-07 ③-S2-a）／已发版 `v0.1.1`（2026-10-25，KT-08：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（2026-10-25，KT-09：新增 `auth.IssueServiceToken` 服务账号签发）／已发版 `v0.1.3`（2026-10-25，KT-10：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 **`v0.1.4`**（2026-10-25，KT-11：`auth/httpadapter.Authenticate` 与 `auth.Middleware` 对 `role=service` 的**非数字 subject** 不再判 401——这一版含行为变更，risk / data / analytics 已升 pin；三件套齐：tag `v0.1.4` 已在**远端**（`git ls-remote --tags origin` 复核）、`CHANGELOG.md` 的 `v0.1.4` 节、`README.md` 兼容矩阵 `v0.1` 行）／已发版 `v0.2.0`（2026-11-10，KT-13：新增 `logging.New(level, format, out)` 可注入实例，writer / 级别随实例；包级 `Logger` / `Init` 保留为 `Deprecated` 薄壳，下一 MAJOR 删除）／已发版 **`v0.3.0`**（2026-11-10，K4 前置 / 裁决 ⑲：新增 `httpserver.FailCode(c, status, code, message)` 由调用点指定错误码，供 core 读面复用 analytics 三态 `code`；只增不改。2026-11-11 复核：tag `v0.3.0` 在远端，core 已 require `v0.3.0`，agent 仍 `v0.2.0`）
+**状态**：S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（2026-10-23，QT-07 ③-S2-a）／已发版 `v0.1.1`（2026-10-25，KT-08：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（2026-10-25，KT-09：新增 `auth.IssueServiceToken` 服务账号签发）／已发版 `v0.1.3`（2026-10-25，KT-10：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 **`v0.1.4`**（2026-10-25，KT-11：`auth/httpadapter.Authenticate` 与 `auth.Middleware` 对 `role=service` 的**非数字 subject** 不再判 401——这一版含行为变更，risk / data / analytics 已升 pin；三件套齐：tag `v0.1.4` 已在**远端**（`git ls-remote --tags origin` 复核）、`CHANGELOG.md` 的 `v0.1.4` 节、`README.md` 兼容矩阵 `v0.1` 行）／已发版 `v0.2.0`（2026-11-10，KT-13：新增 `logging.New(level, format, out)` 可注入实例，writer / 级别随实例；包级 `Logger` / `Init` 保留为 `Deprecated` 薄壳，下一 MAJOR 删除）／已发版 **`v0.3.0`**（2026-11-10，K4 前置 / 裁决 ⑲：新增 `httpserver.FailCode(c, status, code, message)` 由调用点指定错误码，供 core 读面复用 analytics 三态 `code`；只增不改。2026-11-11 复核：tag `v0.3.0` 在远端，core 已 require `v0.3.0`，agent 仍 `v0.2.0`）／已发版 **`v0.4.0`**（2026-11-12，KIT-DEP-SECURITY-BUMP：pgx `v5.11.0` / x/net `v0.60.0` / x/text `v0.42.0`，`go` 指令 1.25.0 → 1.26.11；导出面未动，`govulncheck ./...` EXIT=0）
 
 ## 2. 构建 / 测试（必须单仓可跑）
 
@@ -59,14 +59,18 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 | `github.com/gin-gonic/gin` | v1.10.0 | HTTP 服务端骨架 | `httpserver` / `observability` / `auth` / `authz` |
 | `github.com/spf13/viper` | v1.18.2 | 配置读取（CORS / gin mode） | `httpserver` |
 | `github.com/golang-jwt/jwt/v5` | v5.3.1 | token 签发 / 解析 | `auth` |
-| `golang.org/x/crypto` | v0.53.0 | bcrypt | `auth` |
-| `github.com/jackc/pgx/v5` | v5.7.3 | PG 连接 / 迁移执行机制 | `db` |
+| `golang.org/x/crypto` | v0.57.0 | bcrypt | `auth` |
+| `github.com/jackc/pgx/v5` | v5.11.0 | PG 连接 / 迁移执行机制 | `db` |
 | `github.com/redis/go-redis/v9` | v9.7.3 | Redis 连接 | `db` |
 | `github.com/prometheus/client_golang` | v1.23.2 | metrics 注册表 | `observability` |
-| `golang.org/x/sys` | v0.46.0 | Windows Job Object（进程限额） | `sandbox/runner`（仅 `_windows.go`） |
+| `golang.org/x/sys` | v0.48.0 | Windows Job Object（进程限额） | `sandbox/runner`（仅 `_windows.go`） |
+| `golang.org/x/net` | v0.60.0 | **间接**（HTTP/2 与 IDNA，经 gin / pgx）——安全 bump 主体，见 CHANGELOG `v0.4.0` | 无直接 import |
+| `golang.org/x/text` | v0.42.0 | **间接**（编码转换，经 gin / viper / pgx）——安全 bump 主体 | 无直接 import |
 | `github.com/stretchr/testify` | v1.11.1 | **仅测试**断言 | 各包 `_test.go` |
 
 > 版本与 core 当前 `go.mod` 对齐，避免迁移期同一个库在两个仓里出现两个大版本。
+> **`go` 指令 = 1.26.11**（`v0.4.0` 起）：x/net v0.60.0 要求 `go >= 1.26.0`，而 stdlib 的安全修复要到 1.26.11 才齐；
+> 消费方 go.mod 仍是 `go 1.25.x` 时靠 `GOTOOLCHAIN=auto`（默认）自动取 1.26.11，或显式升工具链。升级顺序与残留 advisory 见 CHANGELOG `v0.4.0`。
 > `github.com/tetratelabs/wazero` 属 core 的 WASM host（`sandbox/wasm` 不搬），**不进本仓**。
 
 > 跨仓依赖**只认版本号**（伪版本或 tag），不认源码路径。契约变更走 `tellurion-contracts` 的发布，不走"顺手改一下"。

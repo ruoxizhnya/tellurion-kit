@@ -10,6 +10,39 @@
 
 （暂无）
 
+## [v0.4.0] - 2026-11-12
+
+### 安全（MINOR 级：底座依赖安全 bump + 工具链底线抬到 go 1.26.11）
+
+- **KIT-DEP-SECURITY-BUMP**（2026-11-12，W5-F1 / ODR-072，裁决 D1=b）：把依赖图底座先闭合漏洞，7 个消费仓再跟升 pin。
+  - `github.com/jackc/pgx/v5` **v5.7.3 → v5.11.0**（一步到位，不逐档）：GO-2026-5004（pgx SQLi）fixed v5.9.2，
+    GO-2026-4771 / GO-2026-4772 fixed v5.9.0。
+  - `golang.org/x/net` **v0.55.0 → v0.60.0**（4 条 advisories fixed v0.60.0）。
+  - `golang.org/x/text` **v0.38.0 → v0.42.0**（GO-2026-5970 fixed v0.39.0、GO-2026-6629 fixed v0.41.0）。
+  - 随 MVS 抬升的传递依赖：`golang.org/x/crypto` v0.53.0 → v0.57.0、`golang.org/x/sys` v0.46.0 → v0.48.0、
+    `golang.org/x/sync` v0.21.0 → v0.23.0（由上面的 x/net / pgx 要求拉上来，不是顺手升无关依赖）。
+  - **`go` 指令 1.25.0 → 1.26.11**：x/net v0.60.0 要求 `go >= 1.26.0`；stdlib 的 29 条 advisory 只有 1.26.11
+    全部修完，所以把 go 指令钉到该补丁版（`govulncheck` 按 go 指令评 stdlib，钉 1.26.0 会留 29 条）。
+  - **版本判定：MINOR（不是 PATCH）**。依据 README「版本规则」：PATCH 只收「文档 / 注释 / 无行为修正」，
+    而本版把**消费方的最低工具链底线**从 1.25 抬到 1.26.11，并整条改变了 require 图的传递依赖版本 ——
+    这是消费方看得见的变化，不能记作 PATCH。**导出 API 与运行语义无变化**（没有删符号 / 改签名 / 改语义），
+    所以不构成 MAJOR。0.x 阶段按 README 的「允许 breaking 但必须 bump MINOR + 写账」执行。
+  - **破坏性：`go` 指令底线 1.25.0 → 1.26.11**。消费方 go.mod 若仍是 `go 1.25.x`，升 pin 后
+    需要 `GOTOOLCHAIN=auto`（默认即 auto，会自动取 1.26.11）或把本机 / CI 工具链升到 ≥ 1.26.11；
+    代码一行不用改（kit 的导出面逐字未动）。
+  - **已知残留（如实登记，不在本单顺手升）**：`x/net@v0.60.0` 仍有 2 条 advisory（GO-2026-6866 / GO-2026-6860，
+    fixed v0.62.0），`x/crypto@v0.57.0` 有 1 条（GO-2026-5932，fixed 于伪版本）；三者均为 **module 级**，
+    `govulncheck` 判定本仓代码**不调用**，故 `./...` 判定 0 条 affected。本单版本由裁决指定为
+    x/net v0.60.0，不擅自再升。
+  - **验收（本机实测，2026-11-12）**：`govulncheck ./...` **EXIT=0**（`No vulnerabilities found`）；
+    `go build ./...` / `go vet ./...` / `go test ./... -count=1` 全绿；`go run ./tools/check_scope`、
+    `go run ./tools/check_release_matrix` 绿。
+  - **破坏验证（真做真还原）**：`golang.org/x/text` 降回 v0.38.0（连带 x/net 被 MVS 压到 v0.56.0）⇒
+    `govulncheck ./...` **EXIT=3**，报 6 条符号级命中（含 GO-2026-6629 / GO-2026-6617 / GO-2026-6612 / GO-2026-6611 /
+    GO-2026-6603 / GO-2026-5970）；`go.mod` / `go.sum` 逐字节还原（SHA256 一致）后复绿 **EXIT=0**。
+    附带取证：单独把 pgx 降回 v5.7.3 只会落到 **package 级**（GO-2026-5004 等 3 条），kit 不调用其漏洞符号，
+    `govulncheck` 默认模式仍判 EXIT=0 —— 所以破坏验证选 x/text，不拿 pgx 假装红。
+
 ## [v0.3.0] - 2026-11-10
 
 ### 新增（MINOR 级：`httpserver.FailCode` 指定错误码）

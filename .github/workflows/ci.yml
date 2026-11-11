@@ -21,7 +21,9 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          # 与 go.mod 的 go 指令一致（v0.4.0 起 = 1.26.11）：x/net v0.60.0 要求 >= 1.26.0，
+          # stdlib 的安全修复要到 1.26.11 才齐；写 1.25 会让 setup-go 先装旧工具链再触发下载。
+          go-version: "1.26.11"
           cache: true
 
       - name: gofmt（未格式化即红）

@@ -1,7 +1,7 @@
 ---
 status: active
-last-verified: 2026-11-11
-verified-by: 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 3 条六字段单（`KIT-DEP-SECURITY-BUMP` / `KIT-SURFACE-FREEZE` / `KIT-REQUESTID-STDLIB`），证据坐标引 ODR-069/072（`tellurion-docs:docs/archive/odr/`）；`KIT-DEP-SECURITY-BUMP` 是 `tellurion:X-DEP-BUMP-CONSUMERS` 的前置；本轮只立单不修复。此前 KT-12 施工（`.github/workflows/ci.yml` 增 `-race` 步骤 + `AGENTS.md` §2 同步；本地六门禁 exit 0；破坏验证 2026-11-10 已用 Docker（CGO）补齐全红全绿，`-race` 步骤真实执行仍待 CI 首跑）
+last-verified: 2026-11-12
+verified-by: 2026-11-12 KIT-DEP-SECURITY-BUMP 收口（govulncheck EXIT=0 / 六门禁绿 / 破坏验证真做真还原 / 发版 `v0.4.0`）；此前 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 3 条六字段单（`KIT-DEP-SECURITY-BUMP` / `KIT-SURFACE-FREEZE` / `KIT-REQUESTID-STDLIB`），证据坐标引 ODR-069/072（`tellurion-docs:docs/archive/odr/`）；`KIT-DEP-SECURITY-BUMP` 是 `tellurion:X-DEP-BUMP-CONSUMERS` 的前置
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -12,7 +12,7 @@ verified-by: 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 
 
 ## 一、未做 / 挂起 / 外部依赖
 
-### KIT-DEP-SECURITY-BUMP · 底座依赖安全 bump（pgx GO-2026-5004 / x/net / x/text）[P0] ⬜
+### KIT-DEP-SECURITY-BUMP · 底座依赖安全 bump（pgx GO-2026-5004 / x/net / x/text）[P0] ✅ 2026-11-12
 
 - **① 目标**：把 kit 的 pgx / x/net / x/text 升到安全版并发版，让依赖图底座先闭合漏洞，7 消费仓再跟升（`tellurion:X-DEP-BUMP-CONSUMERS`）。
 - **② 上下文**：审查发现 W5-F1（ODR-072）+ 裁决 D1=b（pgx 一步收敛 v5.11.0）。GO-2026-5004（pgx SQLi）fixed v5.9.2，kit `db` 现 pin `pgx v5.7.3`；x/net×4 fixed v0.60.0、x/text×2 需升。kit 是底座，bump 后消费仓跟升才真生效。contracts 是唯一 govulncheck EXIT=0 的仓（零 pgx）。
@@ -22,6 +22,13 @@ verified-by: 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 
 - **⑥ 边界**：kit 依赖与发版；消费仓跟升归 `tellurion:X-DEP-BUMP-CONSUMERS`。
 - **owner**：待定
 - **重开条件**：无外部前置（A5 已授权立单；发版推远端由主任做）。
+- **收口记录（2026-11-12）**：
+  - 落地：pgx `v5.7.3 → v5.11.0`、x/net `v0.55.0 → v0.60.0`、x/text `v0.38.0 → v0.42.0`；MVS 连带 x/crypto `v0.53.0 → v0.57.0`、x/sys `v0.46.0 → v0.48.0`、x/sync `v0.21.0 → v0.23.0`。
+  - **`go` 指令 1.25.0 → 1.26.11**（x/net v0.60.0 要求 ≥1.26.0；stdlib 29 条 advisory 要到 1.26.11 才齐，故钉补丁版）。版本判定 **MINOR → `v0.4.0`**（依据：工具链底线抬升是消费方可见变化，不是 PATCH 的「无行为修正」；导出面无改动）。
+  - 验收（本机真实输出）：`govulncheck ./...` EXIT=0；`go build ./...` / `go vet ./...` / `go test ./... -count=1` 全绿；`go run ./tools/check_scope` 与 `check_release_matrix` 绿。
+  - 破坏验证：x/text 降回 v0.38.0（x/net 被 MVS 压到 v0.56.0）⇒ govulncheck EXIT=3（6 条符号级，含 GO-2026-6629 / GO-2026-6617 / GO-2026-5970）；`go.mod` / `go.sum` 逐字节还原（SHA256 一致）后复绿 EXIT=0。单降 pgx 只到 package 级、默认模式 EXIT=0（kit 不调用其漏洞符号），故不作为破坏验证证据。
+  - 残留（如实登记）：x/net v0.60.0 两条 module 级（fixed v0.62.0）、x/crypto 一条（GO-2026-5932），govulncheck 判「不调用」；本单版本由裁决指定为 x/net v0.60.0，不擅自再升。
+  - 发版：tag `v0.4.0`（annotated，`main` 上）已推远端；CHANGELOG `v0.4.0` 节 + README 兼容矩阵 `v0.4` 行 + AGENTS §1/§4 同批。
 
 ### KIT-SURFACE-FREEZE · kit 缺导出面冻结护栏（对照 contracts 的 check_surface_freeze）[P1] ⬜
 

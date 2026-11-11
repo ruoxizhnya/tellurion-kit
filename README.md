@@ -2,7 +2,7 @@
 
 > 5 分钟了解本服务：[SERVICE.md](SERVICE.md)
 
-> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23）／已发版 `v0.1.1`（KT-08，2026-10-25：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（KT-09，2026-10-25：`auth.IssueServiceToken`）／已发版 `v0.1.3`（KT-10，2026-10-25：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 `v0.1.4`（KT-11，2026-10-25）／已发版 `v0.2.0`（KT-13，2026-11-10：`logging.New` 可注入 logger），tag 均在 `main` 上**
+> module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23）／已发版 `v0.1.1`（KT-08，2026-10-25：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（KT-09，2026-10-25：`auth.IssueServiceToken`）／已发版 `v0.1.3`（KT-10，2026-10-25：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 `v0.1.4`（KT-11，2026-10-25）／已发版 `v0.2.0`（KT-13，2026-11-10：`logging.New` 可注入 logger）／已发版 `v0.3.0`（K4 前置，2026-11-10：`httpserver.FailCode`）／已发版 `v0.4.0`（KIT-DEP-SECURITY-BUMP，2026-11-12：pgx v5.11.0 / x/net v0.60.0 / x/text v0.42.0，`go` 指令抬到 1.26.11），tag 均在 `main` 上**
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
 
@@ -86,6 +86,7 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 <!-- matrix:begin -->
 | kit 版本 | 状态 | 支持的 contracts（`tellurion-contracts`） | 支持的 core（`tellurion`） | 支持的 agent（`tellurion-agent`） |
 |---|---|---|---|---|
+| `v0.4` | 已发版（`v0.4.0` 2026-11-12 底座依赖安全 bump：pgx `v5.11.0` / x/net `v0.60.0` / x/text `v0.42.0`；`go` 指令 1.26.11；只升依赖、导出面无改动） | 尚无 require | 尚未验证升 pin（本版 2026-11-12 刚发版，消费仓跟升归各自台账） | 尚未验证升 pin（同上） |
 | `v0.3` | 已发版（`v0.3.0` 2026-11-10 新增 `httpserver.FailCode` 调用点指定错误码；只增不改） | 尚无 require | 已 require `v0.3.0`（2026-11-10 升 pin 实测 `go.mod`） | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
 | `v0.2` | 已发版（`v0.2.0` 2026-11-10 新增 `logging.New(level, format, out)` 可注入 logger；旧 `logging.Logger` / `Init` 保留为 `Deprecated` 薄壳，下一 MAJOR 删除） | 尚无 require | 曾被 `v0.2.0` 使用（2026-11-10），已随 `v0.3.0` 前滚 | 已 require `v0.2.0`（2026-11-10 升 pin 实测 `go.mod`） |
 | `v0.1` | 已发版（`v0.1.0` 2026-10-23 首个版本；`v0.1.1` 2026-10-25 新增 `auth/httpadapter` 子包；`v0.1.2` 2026-10-25 新增 `auth.IssueServiceToken`；`v0.1.3` 2026-10-25 新增 `statistics.LogReturns` / `AnnualizeVolatility` 与 `httpserver.IsLoopbackRemoteAddr`；`v0.1.4` 2026-10-25 修 `service` token 的 subject 校验）；13 包 + `auth/httpadapter`（QT-05-B / KT-08 / KT-09 / KT-10 / KT-11） | 尚无 require（QT-05 contracts 腿落码后接入） | 已 require `v0.1.1`（QT-73 一期切 `errors` / `decimal` / `clock` / `logging` / `httpclient` 五包，2026-10-25 实测 `go.mod`） | 已 require `v0.1.0`（QT-17 ④ 停写切换后 `pkg/aistore` / `cmd/ai` 走 `kit/db`；2026-10-24 实测 `go.mod`） |
@@ -105,6 +106,8 @@ TEST_REDIS_URL="redis://127.0.0.1:6379/0" \
 `v0.2.0` 已于 **2026-11-10** 发版（`KT-13`）：只增不改——`logging.New(level, format string, out io.Writer) zerolog.Logger` 返回独立实例（writer / 级别 / 过滤都随实例），包级 `Logger` 与 `Init` 原样保留为 `Deprecated` 薄壳（下一 MAJOR 删除）。使用方从 `v0.1.4` 升到 `v0.2.0` **不需要改代码**；想摆脱全局的组件按 CHANGELOG 的迁移指引把 `logging.New(...)` 的返回值显式传下去即可。core / agent / analytics / data / orchestration / risk / strategy 七仓同日升 pin 并实测（见 `docs/TASKS.md` KT-13 施工记录）。
 
 `main` 上的 `KT-13`（2026-11-07 落码）已随 **`v0.2.0`（2026-11-10）** 发版，本段保留为历史：当时未打 tag，现已由上面的 `v0.2.0` 段落接替，兼容矩阵已新增 `v0.2` 行。
+
+`v0.4.0` 已于 **2026-11-12** 发版（`KIT-DEP-SECURITY-BUMP`）：只升依赖、**导出面逐字未动**——pgx `v5.7.3 → v5.11.0`、x/net `v0.55.0 → v0.60.0`、x/text `v0.38.0 → v0.42.0`，`govulncheck ./...` EXIT=0。**唯一需要消费方注意的变化是工具链底线**：x/net v0.60.0 要求 `go >= 1.26.0`，且 stdlib 的安全修复只到 1.26.11，所以本仓 `go` 指令从 `1.25.0` 抬到 `1.26.11`——go.mod 仍写 `go 1.25.x` 的消费方升 pin 后需要 `GOTOOLCHAIN=auto`（默认即 auto）或把本机 / CI 工具链升到 ≥ `1.26.11`，代码不用改。已知残留的 3 条 module 级 advisory（本仓不调用）逐条记在 CHANGELOG 的 `v0.4.0` 节。
 
 ## 发版流程
 
