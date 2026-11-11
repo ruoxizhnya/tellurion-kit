@@ -1,5 +1,7 @@
 # tellurion-kit
 
+> 5 分钟了解本服务：[SERVICE.md](SERVICE.md)
+
 > module: `github.com/ruoxizhnya/tellurion-kit` ｜ 状态：**S1 落码已完成（QT-05-B，2026-10-22：13 包全部有实现）／已发版 `v0.1.0`（QT-07 ③-S2-a，2026-10-23）／已发版 `v0.1.1`（KT-08，2026-10-25：新增 `auth/httpadapter` 子包）／已发版 `v0.1.2`（KT-09，2026-10-25：`auth.IssueServiceToken`）／已发版 `v0.1.3`（KT-10，2026-10-25：`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr`）／已发版 `v0.1.4`（KT-11，2026-10-25）／已发版 `v0.2.0`（KT-13，2026-11-10：`logging.New` 可注入 logger），tag 均在 `main` 上**
 
 横切工具层：logging · errors · id · decimal · statistics · httpclient · httpserver · auth/authz · observability · clock · sandbox · **db**（仅 connection/migrate/DSN）。**零业务概念**。
