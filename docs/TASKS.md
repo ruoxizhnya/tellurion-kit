@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-11-12
-verified-by: 2026-11-12 库存三单全部收口——KIT-DEP-SECURITY-BUMP（govulncheck EXIT=0 / 破坏验证真做真还原 / 发版 `v0.4.0`）、KIT-SURFACE-FREEZE（导出面基线 272 行 / 两向破坏验证 / CI 接线）、KIT-REQUESTID-STDLIB（stdlib 中间件 4 条单测 / 删透传即红 / 发版 `v0.5.0`）；此前 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 3 条六字段单，证据坐标引 ODR-069/072（`tellurion-docs:docs/archive/odr/`）；`KIT-DEP-SECURITY-BUMP` 是 `tellurion:X-DEP-BUMP-CONSUMERS` 的前置
+verified-by: 2026-11-12 库存三单全部收口——KIT-DEP-SECURITY-BUMP（govulncheck EXIT=0 / 破坏验证真做真还原 / 发版 `v0.4.0`）、KIT-SURFACE-FREEZE（导出面基线 272 行 / 两向破坏验证 / CI 接线）、KIT-REQUESTID-STDLIB（stdlib 中间件 4 条单测 / 删透传即红 / 发版 `v0.5.0`）；同日台账卫生批次将三条原文逐字移入归档并补检索索引行；此前 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 3 条六字段单，证据坐标引 ODR-069/072（`tellurion-docs:docs/archive/odr/`）；`KIT-DEP-SECURITY-BUMP` 是 `tellurion:X-DEP-BUMP-CONSUMERS` 的前置
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -12,61 +12,7 @@ verified-by: 2026-11-12 库存三单全部收口——KIT-DEP-SECURITY-BUMP（go
 
 ## 一、未做 / 挂起 / 外部依赖
 
-### KIT-DEP-SECURITY-BUMP · 底座依赖安全 bump（pgx GO-2026-5004 / x/net / x/text）[P0] ✅ 2026-11-12
-
-- **① 目标**：把 kit 的 pgx / x/net / x/text 升到安全版并发版，让依赖图底座先闭合漏洞，7 消费仓再跟升（`tellurion:X-DEP-BUMP-CONSUMERS`）。
-- **② 上下文**：审查发现 W5-F1（ODR-072）+ 裁决 D1=b（pgx 一步收敛 v5.11.0）。GO-2026-5004（pgx SQLi）fixed v5.9.2，kit `db` 现 pin `pgx v5.7.3`；x/net×4 fixed v0.60.0、x/text×2 需升。kit 是底座，bump 后消费仓跟升才真生效。contracts 是唯一 govulncheck EXIT=0 的仓（零 pgx）。
-- **③ 要求**：① pgx 升 v5.11.0（D1=b 一步到位，不逐档）；② x/net→v0.60.0、x/text 升安全版；③ `govulncheck ./...` EXIT=0；④ 发版三件套（CHANGELOG + 兼容矩阵 + tag 推远端）；⑤ AGENTS §4 依赖表同批。
-- **④ 约束与非目标**：不手改版本号、不加 replace；不在本单顺手升无关依赖；pgx 大版本收敛的 breaking 面如实登记（底座一次打到 contracts/core/agent）。
-- **⑤ 验收**：`govulncheck ./...` EXIT=0（E1）；`go build/vet/test ./... -count=1` 绿；`check_release_matrix` 绿；破坏验证 = pin 回旧版 ⇒ govulncheck 红。
-- **⑥ 边界**：kit 依赖与发版；消费仓跟升归 `tellurion:X-DEP-BUMP-CONSUMERS`。
-- **owner**：待定
-- **重开条件**：无外部前置（A5 已授权立单；发版推远端由主任做）。
-- **收口记录（2026-11-12）**：
-  - 落地：pgx `v5.7.3 → v5.11.0`、x/net `v0.55.0 → v0.60.0`、x/text `v0.38.0 → v0.42.0`；MVS 连带 x/crypto `v0.53.0 → v0.57.0`、x/sys `v0.46.0 → v0.48.0`、x/sync `v0.21.0 → v0.23.0`。
-  - **`go` 指令 1.25.0 → 1.26.11**（x/net v0.60.0 要求 ≥1.26.0；stdlib 29 条 advisory 要到 1.26.11 才齐，故钉补丁版）。版本判定 **MINOR → `v0.4.0`**（依据：工具链底线抬升是消费方可见变化，不是 PATCH 的「无行为修正」；导出面无改动）。
-  - 验收（本机真实输出）：`govulncheck ./...` EXIT=0；`go build ./...` / `go vet ./...` / `go test ./... -count=1` 全绿；`go run ./tools/check_scope` 与 `check_release_matrix` 绿。
-  - 破坏验证：x/text 降回 v0.38.0（x/net 被 MVS 压到 v0.56.0）⇒ govulncheck EXIT=3（6 条符号级，含 GO-2026-6629 / GO-2026-6617 / GO-2026-5970）；`go.mod` / `go.sum` 逐字节还原（SHA256 一致）后复绿 EXIT=0。单降 pgx 只到 package 级、默认模式 EXIT=0（kit 不调用其漏洞符号），故不作为破坏验证证据。
-  - 残留（如实登记）：x/net v0.60.0 两条 module 级（fixed v0.62.0）、x/crypto 一条（GO-2026-5932），govulncheck 判「不调用」；本单版本由裁决指定为 x/net v0.60.0，不擅自再升。
-  - 残留的**重开条件**（2026-11-12 裁决：接受现状，不再前推到 x/net v0.62.0；不是「永久不做」）：① 任一消费仓 `go list -m all` 已解析到 x/net ≥ v0.62.0（本仓 pin 成为下游 MVS 下限 / 账实不符）；② 下一次安全轮次（govulncheck 复查 / 季度依赖体检）重新扫出这三条，或任一条从 module 级变为符号级；③ 上游把 GO-2026-5932 的修复发成正式版。触发后一并升到修好版本（x/net ≥ v0.62.0、x/crypto 正式版），判定 MINOR / PATCH 发新 tag 并通知 7 仓二次升 pin；触发前不做任何版本动作。
-  - 发版：tag `v0.4.0`（annotated，`main` 上）已推远端；CHANGELOG `v0.4.0` 节 + README 兼容矩阵 `v0.4` 行 + AGENTS §1/§4 同批。
-
-### KIT-SURFACE-FREEZE · kit 缺导出面冻结护栏（对照 contracts 的 check_surface_freeze）[P1] ✅ 2026-11-12
-
-- **① 目标**：给 kit 一个导出面冻结护栏，让「新增/改名/删除导出符号」可机器判定，对齐 contracts 仓已有的 `check_api_surface` + `check_surface_freeze`。
-- **② 上下文**：审查发现 W2-F1（ODR-069）。kit `docs/` 无 `API.md`/`api-surface.txt`；`tools/` 只有 `check_scope` + `check_release_matrix`，无导出面冻结。kit 是底座，breaking 面比别仓宽（README「判定补充」：移动/删除/改名包记 breaking），却无机器护栏钉住导出面。
-- **③ 要求**：① 建 `docs/api-surface.txt` 基线 + `tools/check_surface_freeze`（对照 contracts 形状）；② 新增导出符号须先登记再更新基线；③ CI 增该护栏步骤；④ AGENTS §6 第四份真相源登记。
-- **④ 约束与非目标**：不改现有导出符号（只建护栏）；不照搬 contracts 的业务词表（kit 零业务概念）；护栏破坏验证须真做。
-- **⑤ 验收**：`check_surface_freeze` 绿；破坏验证 = 临时加一个未登记导出符号 ⇒ 红，还原复绿。
-- **⑥ 边界**：kit 导出面护栏；contracts 侧已有护栏不动。
-- **owner**：待定
-- **收口记录（2026-11-12）**：
-  - 落地：新增 `tools/check_surface_freeze/`（`main.go` + `main_test.go` + `testdata/ok/` 夹具）与 `docs/api-surface.txt`（**17 个库包 / 272 行指纹**；`v0.5.0` 增 `observability.RequestIDHandler` 一行后为 273 行）。指纹格式：`dir/Name(params) results`（函数与导出类型的导出方法，指针接收者记为 `(*T)`）、`dir/Type struct{…}`、`dir/Type interface{…}`、`dir/Type <底层类型>`、`dir/Name <类型|字面量>`；按行确定性排序去重。跳过 `package main`、`*_test.go`、`testdata/`、`vendor/`、`.`/`_` 开头目录。
-  - 三个红向：基线缺失 / 空基线 / 一个库包都没扫到（拒绝空绿）；形状漂移先列 `-`（基线有、代码无）再列 `+`（代码有、基线无）。
-  - 实现方式：照 contracts 的 `check_surface_freeze` 思路**独立一份**写在 kit 内（go/parser + go/ast，不依赖 go/types，单仓 checkout 可跑），未跨仓引用对方文件。
-  - 验收（真实输出）：`go run ./tools/check_surface_freeze` → `✅ 导出面形状与 docs/api-surface.txt 逐行一致`；`go test ./tools/check_surface_freeze -count=1` 9 条用例全 PASS（绿腿 + 新增红 + 删除红 + 改字段红 + 基线缺失红 + 空基线红 + 空扫红 + update 后复绿 + package main 不入基线）。
-  - 破坏验证（真做真还原）：① 临时加 `id/surface_probe.go`（`func SurfaceProbe()`）⇒ `+ id/SurfaceProbe()`，EXIT=1；删除后复绿。② 把 `id/id.go` 临时改名为 `id/id.go.off` ⇒ `- id/JobID() string`、`- id/SubscriptionID() string`，EXIT=1；改回后复绿（`git status` 确认无残留）。
-  - 接线：CI 在 `check_scope` / `check_release_matrix` 之后新增该步骤；AGENTS §6 登记为「第六份真相源」并写入变更触发；README 目录表 / 快速开始 / 发版流程 / 文档清单同步；`docs/README.md` 文档地图与 §3 变更触发表同步。
-  - 说明：本单只建护栏，**未改任何导出符号**，基线即当前导出面的快照。
-
-### KIT-REQUESTID-STDLIB · RequestID 中间件只有 gin 版，6 服务仓 stdlib mux 装不上 [P1] ✅ 2026-11-12
-
-- **① 目标**：给 kit 一个 **stdlib `net/http` 兼容**的 RequestID 中间件，让 6 个用 stdlib mux 的服务仓能真装上请求 ID 传播。
-- **② 上下文**：审查发现 W5-F3（ODR-072）。kit 现 RequestID 中间件是 gin 版，6 服务仓用 stdlib mux 装不上；core `observability/middleware.go:58` 零安装；agent 出站 HTTPTransport 有、入站 RequestIDMiddleware 无。ADR-027:1314-1316 / ADR-029:126-127/:448 / ADR-017:151 的「请求 ID 全链路」断言被证伪（订正归 `tellurion-docs:DOC-ADR-REQUESTID-CORRECTION`）。
-- **③ 要求**：① kit 增 stdlib 版 RequestID 中间件（`func(http.Handler) http.Handler`）；② 与 gin 版共用同一 ID 生成/传播口径；③ 发版（只增不改，MINOR）；④ 6 服务仓安装归各仓 + `X-CI-RACE-STATICCHECK` 同批核对。
-- **④ 约束与非目标**：不改 gin 版语义；不引入新依赖（用 stdlib + 现有 id 包）；不强制 core/agent 同批安装（各仓自持）。
-- **⑤ 验收**：stdlib 中间件单测（入站生成/出站传播/已有 ID 透传）；破坏验证 = 删透传 ⇒ 用例红；`check_scope` 绿（不撞业务词）。
-- **⑥ 边界**：kit stdlib 中间件与发版；各仓安装归各仓；ADR 断言订正归 docs 仓。
-- **owner**：待定
-- **收口记录（2026-11-12）**：
-  - 落地：新增 `observability/requestid_http.go` 的 `RequestIDHandler(next http.Handler) http.Handler`（**gin 版 `middleware.go` 一行未改**）。语义与 gin 版逐条对齐：入站 `X-Request-ID` 有则透传、无则 `uuid.NewString()`；token 经既有 `withRequestID` 写进 request context（`RequestIDKey`，取回用 `RequestIDFromContext`）；回镜像响应头；出站复用既有 `HTTPTransport` / `WithRequestIDHeader`（同一 context 即传播）。装配两层幂等（第二次读到第一次的 token）。
-  - 依赖：未引入新依赖——UUID 生成走 gin 版已在用的 `github.com/google/uuid`，口径完全一致。
-  - 验收（真实输出）：`go test ./observability -count=1` 全绿；新增 4 条用例 PASS——生成（无 header ⇒ 非空且响应头一致）、透传（`upstream-token` 原样）、出站传播（`HTTPTransport` 把 `trace-9` 写到下游 `X-Request-ID`）、64 并发不串号（context 与响应头都等于各自 token）；`go build/vet/test ./... -count=1` 全绿；`check_scope` / `check_release_matrix` / `check_surface_freeze` 绿。
-  - 破坏验证：临时把 `rid := r.Header.Get(RequestIDHeader)` 改成 `rid := ""` ⇒ `TestRequestIDHandler_PreservesInboundToken` 红（expected `upstream-token`，actual 为新 UUID）；逐字节还原（`Get-FileHash` 前后一致）后复绿。
-  - 发版：`v0.5.0`（MINOR，只增不改）。基线 `docs/api-surface.txt` 增 `observability/RequestIDHandler(http.Handler) http.Handler`，CHANGELOG / 兼容矩阵 `v0.5` / `SCOPE.md` observability 行 / `api-schema.md` 同批更新。
-  - 未做（按 ④ 边界）：6 服务仓安装与 `X-CI-RACE-STATICCHECK`、ADR 断言订正分别在各自仓与 docs 仓，本仓不动。
-
-**其余无未做 / 挂起 / 外部依赖项**（截至 2026-11-12：库存三单 `KIT-DEP-SECURITY-BUMP` / `KIT-SURFACE-FREEZE` / `KIT-REQUESTID-STDLIB` 全部 ✅，收口记录按六字段留在正文，✅ 附日期与实测证据；这三条的归档挪移在下一轮台账重整时执行）。已收口单的正文与施工记录历史部分在归档文件里；新增工作一律另立单。
+**当前无未做 / 挂起 / 外部依赖项**（2026-11-12 台账卫生批次：库存三单 `KIT-DEP-SECURITY-BUMP` / `KIT-SURFACE-FREEZE` / `KIT-REQUESTID-STDLIB` 已全部 ✅，原文与收口记录逐字移入归档「2026-11-12 收口（台账卫生批次）」节并补检索索引行）。已收口单的正文与施工记录历史部分在归档文件里；新增工作一律另立单。
 
 ## 二、跨仓指针（不在本仓，勿双写）
 
