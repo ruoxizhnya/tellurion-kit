@@ -134,7 +134,7 @@ func run(opts options) error {
 		}
 	}
 	if len(added) > 0 {
-		fmt.Fprintf(out, "❌ 代码里有、基线里没有（%d）—— 新增符号要先登记 docs/SCOPE.md §3 与 CHANGELOG，再跑 -update：\n", len(added))
+		fmt.Fprintf(out, "❌ 代码里有、基线里没有（%d）—— 新增符号先在 CHANGELOG 落账（新增包 / 改包边界另改 SCOPE.md §3），再跑 -update 写入 docs/api-surface.txt：\n", len(added))
 		for _, line := range added {
 			fmt.Fprintln(out, "   +", line)
 		}

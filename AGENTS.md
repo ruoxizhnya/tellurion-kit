@@ -104,7 +104,7 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 **第六份是导出面冻结基线**：`docs/api-surface.txt`（`KIT-SURFACE-FREEZE`）—— 每个导出符号一行形状指纹
 （函数签名 / 结构体字段 / 接口方法集 / 具名类型底层类型 / 常量字面量），`go run ./tools/check_surface_freeze` 逐行比对。
 它和第四份分工不同：`check_scope` 核**包边界**（不该有的包、不该出现的业务词），这一份核**已有导出面的形状有没有动**（改名、改签名、加删字段、改底层类型）。
-**红只有一条合法出路**：确认这是有意的 API 变更 → 先登记 `docs/SCOPE.md` §3 与 `CHANGELOG.md` → 跑 `go run ./tools/check_surface_freeze -update` → 把 `docs/api-surface.txt` 的 diff 随代码一起提交评审。
+**红只有一条合法出路**：确认这是有意的 API 变更 → 先在 `CHANGELOG.md` 落账（新增**包**或改包边界另需登记 `docs/SCOPE.md` §3）→ 跑 `go run ./tools/check_surface_freeze -update` 把符号写进 `docs/api-surface.txt` → 把基线的 diff 随代码一起提交评审。符号级登记**只**落在 `docs/api-surface.txt`，SCOPE §3 表是包级准入边界、不列符号。
 **不许**为了让 CI 变绿直接 `-update` 而不改账；基线缺失 / 空基线 / 一个库包都没扫到，护栏自身即红（拒绝空绿）。
 
 **导出面登记口径（不照搬 contracts 的 `docs/API.md` 三件套）**：本仓的符号级登记源是 `docs/api-surface.txt`（`tools/check_surface_freeze` 逐行比对形状指纹），发布矩阵由 `tools/check_release_matrix` 承担（`README.md` 兼容矩阵 ↔ `CHANGELOG.md` ↔ tag）；本仓**不设** `docs/API.md`，也**不引入** contracts 的 `tools/check_api_surface` / `check_contract_shape`。理由三条：

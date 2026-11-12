@@ -31,7 +31,7 @@
 
 - **KIT-SURFACE-FREEZE**（2026-11-12）：新增 `tools/check_surface_freeze` + `docs/api-surface.txt` 基线（17 个库包；建基线时 272 行，本版新增 `RequestIDHandler` 后 273 行指纹），
   导出面任何一行增删改都在 CI 变红；基线缺失 / 空基线 / 一个库包都没扫到同样红（拒绝空绿）。
-  有意变更的合法路径：先登记 `docs/SCOPE.md` §3 + 本节，再 `go run ./tools/check_surface_freeze -update`，diff 随代码提交。
+  有意变更的合法路径：先在本节落账（新增包 / 改包边界另改 `docs/SCOPE.md` §3），再 `go run ./tools/check_surface_freeze -update` 把符号写入 `docs/api-surface.txt`，diff 随代码提交。
 
 ## [v0.4.0] - 2026-11-12
 

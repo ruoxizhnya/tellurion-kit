@@ -1,18 +1,23 @@
 ---
 status: active
-last-verified: 2026-11-11
-verified-by: 代码-文档对齐审计（2026-11-11：`logging.New`（v0.2.0）与 `httpserver.FailCode`（v0.3.0）已在 §1/§2 登记并核对）；KT-09 / KT-10 落地（`auth.IssueServiceToken`、`statistics.LogReturns` / `AnnualizeVolatility`、`httpserver.IsLoopbackRemoteAddr` 已按导出面核对）
+last-verified: 2026-11-12
+verified-by: 真相源粒度对齐（2026-11-12：把"唯一真相源"改为按粒度分层——人读语义归本文、符号形状归 `api-surface.txt`、包边界归 `SCOPE.md`、版本归属归 README 矩阵 + CHANGELOG；同步 `check_surface_freeze` 红文案与 AGENTS/docs/README 的登记落点）
 ---
 
 # API Schema — tellurion-kit
 
 > **契约地位**：本仓的"API"是 **Go 包级 API**（导出函数 / 类型）。消费方式是 `require` + 版本号。
-> 本文件是**本仓对外接口的唯一真相源**。代码与它不一致时，先判断谁错：契约错 → 改本文 + 立 ADR；实现错 → 改代码。
-> 跨仓消费方（core / agent / ui / 其他服务）按本文件编码，**不读本仓实现**。
+> 跨仓消费方（core / agent / ui / 其他服务）按本文与基线编码，**不读本仓实现**。
 >
-> **粒度分工**：本表记的是**每包承诺什么形状**（收什么、不收什么、哪些没提供）。
-> 符号级清单不写在这里——那是代码本身 + [`SCOPE.md`](SCOPE.md) §3 的逐包准入/禁入表（`tools/check_scope` 按它核对包边界）。
-> 版本承诺（哪个符号属哪个版本、breaking 怎么记）在 `README.md` 的兼容矩阵与 `CHANGELOG.md`。
+> **真相源按粒度分层，各自只在自己那一层"唯一"**：
+>
+> - **人读语义**（每包承诺什么形状、收什么/不收什么/不提供什么、错误码与 fail-closed 口径）→ **本文件**；
+> - **符号形状**（导出符号的签名 / 结构体字段 / 接口方法集 / 具名类型底层类型 / 常量字面量）→ [`api-surface.txt`](api-surface.txt)，由 `tools/check_surface_freeze` 与代码逐行比对；两者冲突时**以基线为准**（先把这层想清楚再回来改本文）；
+> - **包边界**（包该不该存在、业务词、依赖方向）→ [`SCOPE.md`](SCOPE.md) §3，由 `tools/check_scope` 核对；
+> - **版本归属与 breaking**（哪个符号属哪个版本、怎么记 breaking）→ `../README.md` 兼容矩阵 + `../CHANGELOG.md`，由 `tools/check_release_matrix` 对拍；
+> - **路由契约**（HTTP 路径与端点形状）→ **本仓不定义业务路由**；各服务的路由表归各服务自己的 `docs/api-schema.md`，本仓只承诺中间件与错误映射机制（见 §1 的 `httpserver` / `auth` / `authz` 行）。
+>
+> 代码与本文不一致时，先判断谁错：契约错 → 改本文 + 立 ADR；实现错 → 改代码。
 
 ## 1. 接口面
 
