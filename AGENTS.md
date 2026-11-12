@@ -107,4 +107,10 @@ go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGEL
 **红只有一条合法出路**：确认这是有意的 API 变更 → 先登记 `docs/SCOPE.md` §3 与 `CHANGELOG.md` → 跑 `go run ./tools/check_surface_freeze -update` → 把 `docs/api-surface.txt` 的 diff 随代码一起提交评审。
 **不许**为了让 CI 变绿直接 `-update` 而不改账；基线缺失 / 空基线 / 一个库包都没扫到，护栏自身即红（拒绝空绿）。
 
+**导出面登记口径（不照搬 contracts 的 `docs/API.md` 三件套）**：本仓的符号级登记源是 `docs/api-surface.txt`（`tools/check_surface_freeze` 逐行比对形状指纹），发布矩阵由 `tools/check_release_matrix` 承担（`README.md` 兼容矩阵 ↔ `CHANGELOG.md` ↔ tag）；本仓**不设** `docs/API.md`，也**不引入** contracts 的 `tools/check_api_surface` / `check_contract_shape`。理由三条：
+
+- **不造第二份登记源**：`api-surface.txt` 由 `check_surface_freeze -update` 从代码机械生成并逐行冻结；再手写一份符号清单就是第二个真相源，两份迟早漂，且漂的时候只有一头会红。
+- **`check_contract_shape` 的判据不适用于本仓**：它禁导出 `*Config` / `*Options` / `*Impl` 形状名、禁任何非测试文件 import 数据库/驱动包——而 `auth.Config`、`db` 包直连 `pgx` 正是本仓的本职能力，照搬会把自己的核心包判红。
+- **人读层已由 `docs/api-schema.md` 承担**：它记「每包承诺什么形状、不提供什么」，与 `docs/SCOPE.md` §3（包边界）、`docs/api-surface.txt`（符号形状）三层分工，不缺 contracts `API.md` 那一层。
+
 **变更触发是硬约束**（完整表见 `docs/README.md` §3）：改表 → 改 `db-schema.md`；改接口 → 改 `api-schema.md`；改链路 → 改 `dataflow.md`；**新增 / 改名 / 删除包，或改某包准入边界 → 改 `docs/SCOPE.md` 那一行**；**新增 / 改名 / 改签名 / 加删导出字段 → 改 `docs/api-surface.txt`（`-update`）**；**发版 → 改兼容矩阵那一行 + `CHANGELOG.md` 那一节**；改分层 → 改 `ARCHITECTURE.md` + 一条 ADR；删档/迁移/换工具 → 一条 ODR。PR 里代码动了而对应文档没动，应被打回。
