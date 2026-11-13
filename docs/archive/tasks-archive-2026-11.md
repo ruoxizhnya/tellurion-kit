@@ -25,6 +25,7 @@
 | KIT-DEP-SECURITY-BUMP | 底座依赖安全 bump（pgx GO-2026-5004 / x/net / x/text） | 2026-11-12 | `60bcfba`、`9cc72dc` | [原文](#KIT-DEP-SECURITY-BUMP) |
 | KIT-SURFACE-FREEZE | kit 缺导出面冻结护栏（对照 contracts 的 check_surface_freeze） | 2026-11-12 | `6eba77b` | [原文](#KIT-SURFACE-FREEZE) |
 | KIT-REQUESTID-STDLIB | RequestID 中间件只有 gin 版，6 服务仓 stdlib mux 装不上 | 2026-11-12 | `c794171` | [原文](#KIT-REQUESTID-STDLIB) |
+| KIT-COVERAGE-FLOOR | 工具仓覆盖率门（实测 86.4% → 门 81%） | 2026-11-13 | 见本条施工记录 | [原文与施工记录](#KIT-COVERAGE-FLOOR) |
 
 ---
 
@@ -396,3 +397,21 @@
   - 破坏验证：临时把 `rid := r.Header.Get(RequestIDHeader)` 改成 `rid := ""` ⇒ `TestRequestIDHandler_PreservesInboundToken` 红（expected `upstream-token`，actual 为新 UUID）；逐字节还原（`Get-FileHash` 前后一致）后复绿。
   - 发版：`v0.5.0`（MINOR，只增不改）。基线 `docs/api-surface.txt` 增 `observability/RequestIDHandler(http.Handler) http.Handler`，CHANGELOG / 兼容矩阵 `v0.5` / `SCOPE.md` observability 行 / `api-schema.md` 同批更新。
   - 未做（按 ④ 边界）：6 服务仓安装与 `X-CI-RACE-STATICCHECK`、ADR 断言订正分别在各自仓与 docs 仓，本仓不动。
+
+---
+
+## 2026-11-13 收口
+
+<a id="KIT-COVERAGE-FLOOR"></a>
+### KIT-COVERAGE-FLOOR · 工具仓覆盖率门（把自述的 75% 变成有承接者的门）[P2] ✅ 2026-11-13
+
+> 档 4（测试）· 来源：03-testing P2-2 · 顺序 4-9 · 依赖：core 伞 `X-COVERAGE-FLOOR`
+
+- **① 目标**：本仓覆盖率门不再只是文档自述，而是 CI 里能红的门。
+- **② 上下文**：本仓 TASKS 自述"75% 门槛无承接者"；CI 有测试与静态检查，但没有覆盖率门禁。
+- **③ 要求**：① 先在本机跑全套件测出实际覆盖率（贴真实输出）；② 设门 = 实测 - 5 点（取整）；③ 写入 CI 与 `AGENTS.md`，说明阈值来源。
+- **④ 约束与非目标**：不靠空壳测试抬覆盖；不引入新工具链；不阻塞其他仓。
+- **⑤ 验收**：CI 使用新阈值；删除一个有实质断言的测试文件 ⇒ 门红；还原 ⇒ 绿。
+- **⑥ 边界**：本仓 CI + `AGENTS.md`。
+
+**施工记录（2026-11-13）**：本机全量实测 `go test ./... -count=1 -coverprofile` + `go tool cover -func` ⇒ `total: 86.4%`（1286 条语句）；门 = 86.4 - 5 = **81%**。`.github/workflows/ci.yml` 的 `Test` 步改为「Test（覆盖率门 ≥ 81%）」：跑带 profile 的全套件、解析 total、低于 81 即 `exit 1`；既有 `-race` / `check_scope` / `check_release_matrix` 步不变。`AGENTS.md` §2 的常用命令与护栏说明补该门。破坏验证真做真还原：临时移除 `tools/check_surface_freeze/main_test.go` ⇒ `77%`、`GATE RED`、`EXIT=1`；还原后复跑 `86.4%`、`GATE GREEN`、`EXIT=0`。

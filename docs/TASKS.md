@@ -1,7 +1,7 @@
 ---
 status: active
 last-verified: 2026-11-13
-verified-by: 2026-11-13 五角审查档 4 立单（只立单不施工）——新立 `KIT-COVERAGE-FLOOR`；此前：2026-11-12 库存三单全部收口——KIT-DEP-SECURITY-BUMP（govulncheck EXIT=0 / 破坏验证真做真还原 / 发版 `v0.4.0`）、KIT-SURFACE-FREEZE（导出面基线 272 行 / 两向破坏验证 / CI 接线）、KIT-REQUESTID-STDLIB（stdlib 中间件 4 条单测 / 删透传即红 / 发版 `v0.5.0`）；同日台账卫生批次将三条原文逐字移入归档并补检索索引行；此前 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 3 条六字段单，证据坐标引 ODR-069/072（`tellurion-docs:docs/archive/odr/`）；`KIT-DEP-SECURITY-BUMP` 是 `tellurion:X-DEP-BUMP-CONSUMERS` 的前置
+verified-by: 2026-11-13 `KIT-COVERAGE-FLOOR` 收口 ✅——本机全量实测 **86.4%**，CI 门 = 实测 - 5 点 = **81%**（`go tool cover -func` 语句加权）；破坏验证：删 `tools/check_surface_freeze/main_test.go` ⇒ **77%** 门红 EXIT=1，还原 ⇒ 86.4% EXIT=0；`AGENTS.md` §2 已写明阈值与来源；原文与施工记录移入归档。此前：2026-11-13 五角审查档 4 立单（只立单不施工）——新立 `KIT-COVERAGE-FLOOR`；此前：2026-11-12 库存三单全部收口——KIT-DEP-SECURITY-BUMP（govulncheck EXIT=0 / 破坏验证真做真还原 / 发版 `v0.4.0`）、KIT-SURFACE-FREEZE（导出面基线 272 行 / 两向破坏验证 / CI 接线）、KIT-REQUESTID-STDLIB（stdlib 中间件 4 条单测 / 删透传即红 / 发版 `v0.5.0`）；同日台账卫生批次将三条原文逐字移入归档并补检索索引行；此前 2026-11-11 全面审查 W7 台账立单（A5 授权）——新立 3 条六字段单，证据坐标引 ODR-069/072（`tellurion-docs:docs/archive/odr/`）；`KIT-DEP-SECURITY-BUMP` 是 `tellurion:X-DEP-BUMP-CONSUMERS` 的前置
 ---
 
 # TASKS — tellurion-kit 未完成项
@@ -12,20 +12,7 @@ verified-by: 2026-11-13 五角审查档 4 立单（只立单不施工）——�
 
 ## 一、未做 / 挂起 / 外部依赖
 
-**当前仅 `KIT-COVERAGE-FLOOR` 一条未做（2026-11-13 档 4）**（2026-11-12 台账卫生批次：库存三单 `KIT-DEP-SECURITY-BUMP` / `KIT-SURFACE-FREEZE` / `KIT-REQUESTID-STDLIB` 已全部 ✅，原文与收口记录逐字移入归档「2026-11-12 收口（台账卫生批次）」节并补检索索引行）。已收口单的正文与施工记录历史部分在归档文件里；新增工作一律另立单。
-
-#### 2026-11-13 五角审查 · 档 4（测试）
-
-### KIT-COVERAGE-FLOOR · 工具仓覆盖率门（把自述的 75% 变成有承接者的门）[P2] ⬜
-
-> 档 4（测试）· 来源：03-testing P2-2 · 顺序 4-9 · 依赖：core 伞 `X-COVERAGE-FLOOR`
-
-- **① 目标**：本仓覆盖率门不再只是文档自述，而是 CI 里能红的门。
-- **② 上下文**：本仓 TASKS 自述"75% 门槛无承接者"；CI 有测试与静态检查，但没有覆盖率门禁。
-- **③ 要求**：① 先在本机跑全套件测出实际覆盖率（贴真实输出）；② 设门 = 实测 - 5 点（取整）；③ 写入 CI 与 `AGENTS.md`，说明阈值来源。
-- **④ 约束与非目标**：不靠空壳测试抬覆盖；不引入新工具链；不阻塞其他仓。
-- **⑤ 验收**：CI 使用新阈值；删除一个有实质断言的测试文件 ⇒ 门红；还原 ⇒ 绿。
-- **⑥ 边界**：本仓 CI + `AGENTS.md`。
+**活跃层无开放项**（2026-11-13：`KIT-COVERAGE-FLOOR` 已收口 ✅，原文与施工记录见归档「2026-11-13 收口」节）。2026-11-12 台账卫生批次：库存三单 `KIT-DEP-SECURITY-BUMP` / `KIT-SURFACE-FREEZE` / `KIT-REQUESTID-STDLIB` 已全部 ✅，原文与收口记录逐字移入归档「2026-11-12 收口（台账卫生批次）」节并补检索索引行。已收口单的正文与施工记录历史部分在归档文件里；新增工作一律另立单。
 
 ## 二、跨仓指针（不在本仓，勿双写）
 

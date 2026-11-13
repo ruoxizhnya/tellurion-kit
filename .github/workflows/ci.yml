@@ -54,8 +54,18 @@ jobs:
       - name: 导出面冻结核对（未登记新增 / 删符号 / 改签名 即红）
         run: go run ./tools/check_surface_freeze
 
-      - name: Test
-        run: go test ./... -count=1
+      # KIT-COVERAGE-FLOOR：覆盖率门（X-COVERAGE-FLOOR 本仓腿）。
+      # 阈值 = 2026-11-13 本机全量实测 86.4% - 5 点 = 81%（先测后设，不猜数）。
+      # 执法者 = `go tool cover`（语句加权）；空壳测试抬覆盖不被接受。
+      - name: Test（覆盖率门 ≥ 81%）
+        run: |
+          go test ./... -count=1 -coverprofile=coverage.out
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/,"",$3); print $3}')"
+          echo "total coverage: ${total}%"
+          if awk -v t="$total" 'BEGIN { exit !(t+0 < 81) }'; then
+            echo "覆盖率 ${total}% 低于阈值 81%（2026-11-13 实测 86.4% - 5 点）"
+            exit 1
+          fi
 
       # KT-12：并发面的机械判据。`-count=1` 只证明「逻辑对」，证明不了「并发安全」——
       # httpserver / auth / db / observability 这些包的共享状态一旦被无锁读写，

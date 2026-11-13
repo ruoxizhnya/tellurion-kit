@@ -15,9 +15,12 @@ go build ./...
 go vet ./...
 go test ./...
 go test ./... -race -count=1        # 竞态门禁（CI 同款，KT-12）；覆盖面 = 全仓所有包，需 CGO_ENABLED=1
+go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out  # 覆盖率门（CI 同款，KIT-COVERAGE-FLOOR，阈值 81%）
 go run ./tools/check_scope          # 包边界：业务词 / 越界 import / SCOPE.md 未登记包 即红（CI 同款，KT-01 护栏）
 go run ./tools/check_release_matrix # 版本规则表 + 兼容矩阵 ↔ CHANGELOG ↔ tag（CI 同款，KT-02 护栏）
 ```
+
+- **覆盖率门（KIT-COVERAGE-FLOOR）**：CI 的 Test 步改为带 `-coverprofile` 的覆盖率门，阈值 **81%**（语句加权，`go tool cover -func` 的 `total`）。来源 = 2026-11-13 本机全量实测 `86.4%` 减 5 点，先测后设、不猜数（跨仓口径见 `tellurion:docs/TASKS.md` → `X-COVERAGE-FLOOR`）。低于阈值 CI `exit 1`；**不许**用空壳测试抬覆盖。破坏验证基线：移除 `tools/check_surface_freeze/main_test.go` ⇒ 实测掉到 81% 以下门红，还原 ⇒ `86.4%` 绿。
 
 - 前三条是 R1/R2 的判据：**单独 checkout 就能绿**；后三条是本仓的随仓护栏（CI 同款步骤）。
 - **`-race` 的覆盖面与本机限制（KT-12）**：CI 步骤名写作「Test -race（覆盖面：全仓所有包）」，**没有**缩小到 `auth` / `httpserver` / `db` 三包——缩小覆盖面会让读者以为其余包已过竞态检测。`-race` 依赖 cgo，**Windows 无 gcc 时本机跑不动**（`go: -race requires cgo`），这条腿的结论**一律以 CI 输出为准**，不拿本地绿当证据。
